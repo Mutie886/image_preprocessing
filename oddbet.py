@@ -2,6 +2,7 @@ import streamlit as st
 import easyocr
 import pandas as pd
 import re
+import numpy as np  # ✅ This was missing
 from PIL import Image
 
 st.title("⚽ Football Results OCR to CSV")
@@ -32,3 +33,4 @@ if uploaded_file:
         st.download_button("Download CSV", df.to_csv(index=False), "football_results.csv")
     else:
         st.warning("No matches detected. Try a clearer screenshot.")
+
