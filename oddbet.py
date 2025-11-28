@@ -30,32 +30,32 @@ if uploaded_file:
         processed_img = np.array(Image.open(uploaded_file).convert("RGB"))
 
     # Step 2: OCR with EasyOCR
-    reader = easyocr.Reader(['en'])
-    results = reader.readtext(processed_img)
+    reader = easyocr.Reader(['en'], gpu=False)
 
-    # Step 3: Extract text fragments
-    lines = [res[1] for res in results]
+    # General OCR (team names + text)
+    results_text = reader.readtext(processed_img)
+
+    # Digit-only OCR (scores)
+    results_digits = reader.readtext(processed_img, allowlist='0123456789-–—')
+
+    # Step 3: Extract fragments
+    team_lines = [res[1].strip() for res in results_text if re.match(r"^[A-Za-z ]+$", res[1].strip())]
+    score_lines = [res[1].strip() for res in results_digits if re.match(r"^\d+\s*[-–—]\s*\d+$", res[1].strip())]
 
     # Debug: show raw OCR output
     st.subheader("🔍 Raw OCR Output")
-    st.write(lines)
+    st.write("Teams:", team_lines)
+    st.write("Scores:", score_lines)
 
-    # Step 4: Reconstruct matches from 3-line chunks
+    # Step 4: Pair teams with scores
     matches = []
-    i = 0
-    while i < len(lines) - 2:
-        team1 = lines[i].strip()
-        score_line = lines[i + 1].strip()
-        team2 = lines[i + 2].strip()
-
-        score_match = re.match(r"(\d+)\s*[-–—]\s*(\d+)", score_line)
-        if score_match:
-            home_score = int(score_match.group(1))
-            away_score = int(score_match.group(2))
+    for i in range(0, len(team_lines), 2):
+        if i//2 < len(score_lines):
+            team1 = team_lines[i]
+            team2 = team_lines[i+1] if i+1 < len(team_lines) else "Unknown"
+            score_line = score_lines[i//2]
+            home_score, away_score = map(int, re.findall(r"\d+", score_line))
             matches.append([team1, home_score, away_score, team2])
-            i += 3
-        else:
-            i += 1  # Skip forward if no score found
 
     # Step 5: Display and export
     if matches:
