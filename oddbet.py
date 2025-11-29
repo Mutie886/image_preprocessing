@@ -23,6 +23,11 @@ Only matches between these teams are accepted:
 # Initialize persistent match list and counters
 if "match_data" not in st.session_state:
     st.session_state.match_data = []
+
+# Per-team counters:
+# - F<4H: counts home appearances with Total-G != 4 (reset on == 4)
+# - F<4A: counts away appearances with Total-G != 4 (reset on == 4)
+# - HA: unified per-team counter across home+away with Total-G != 4 (reset on == 4)
 if "home_counters" not in st.session_state:
     st.session_state.home_counters = {team: 0 for team in VALID_TEAMS}
 if "away_counters" not in st.session_state:
@@ -85,32 +90,35 @@ if parse_clicked:
         elif new_matches:
             # Update counters and add matches
             for home_team, home_score, away_score, away_team in new_matches:
-                total_g = home_score + away_score
+                total_g_value = home_score + away_score
+                total_g_display = "Won" if total_g_value == 4 else total_g_value
 
-                if total_g == 4:
-                    # Reset counters for both teams
+                if total_g_value == 4:
+                    # Reset counters for both teams on "Won"
                     st.session_state.home_counters[home_team] = 0
                     st.session_state.away_counters[away_team] = 0
                     st.session_state.ha_counters[home_team] = 0
                     st.session_state.ha_counters[away_team] = 0
                 else:
-                    # Increment counters when Total-G != 4
+                    # Increment when Total-G != 4
                     st.session_state.home_counters[home_team] += 1
                     st.session_state.away_counters[away_team] += 1
                     st.session_state.ha_counters[home_team] += 1
                     st.session_state.ha_counters[away_team] += 1
 
-                # Append match with computed values
+                # Single column F!=4HA should reflect both teams' unified counters for this match
+                f_ne_4_ha_str = f"{home_team}: {st.session_state.ha_counters[home_team]} | {away_team}: {st.session_state.ha_counters[away_team]}"
+
+                # Append match row
                 st.session_state.match_data.append([
                     home_team,
                     home_score,
                     away_score,
                     away_team,
-                    "Won" if total_g == 4 else total_g,
+                    total_g_display,
                     st.session_state.home_counters[home_team],
                     st.session_state.away_counters[away_team],
-                    st.session_state.ha_counters[home_team],
-                    st.session_state.ha_counters[away_team]
+                    f_ne_4_ha_str
                 ])
 
             st.success(f"✅ Added {len(new_matches)} new matches.")
@@ -119,7 +127,7 @@ if parse_clicked:
 if st.session_state.match_data:
     df = pd.DataFrame(
         st.session_state.match_data,
-        columns=["Home Team", "Home Score", "Away Score", "Away Team", "Total-G", "F<4H", "F<4A", "F!=4HA(Home)", "F!=4HA(Away)"]
+        columns=["Home Team", "Home Score", "Away Score", "Away Team", "Total-G", "F<4H", "F<4A", "F!=4HA"]
     )
 
     st.subheader("📊 Latest 10 Match Results")
