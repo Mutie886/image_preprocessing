@@ -27,6 +27,8 @@ if "home_counters" not in st.session_state:
     st.session_state.home_counters = {team: 0 for team in VALID_TEAMS}
 if "away_counters" not in st.session_state:
     st.session_state.away_counters = {team: 0 for team in VALID_TEAMS}
+if "ha_counters" not in st.session_state:
+    st.session_state.ha_counters = {team: 0 for team in VALID_TEAMS}
 
 # Input area
 raw_input = st.text_area(
@@ -89,10 +91,14 @@ if parse_clicked:
                     # Reset counters for both teams
                     st.session_state.home_counters[home_team] = 0
                     st.session_state.away_counters[away_team] = 0
+                    st.session_state.ha_counters[home_team] = 0
+                    st.session_state.ha_counters[away_team] = 0
                 else:
-                    if total_g < 4:
-                        st.session_state.home_counters[home_team] += 1
-                        st.session_state.away_counters[away_team] += 1
+                    # Increment counters when Total-G != 4
+                    st.session_state.home_counters[home_team] += 1
+                    st.session_state.away_counters[away_team] += 1
+                    st.session_state.ha_counters[home_team] += 1
+                    st.session_state.ha_counters[away_team] += 1
 
                 # Append match with computed values
                 st.session_state.match_data.append([
@@ -102,7 +108,9 @@ if parse_clicked:
                     away_team,
                     "Won" if total_g == 4 else total_g,
                     st.session_state.home_counters[home_team],
-                    st.session_state.away_counters[away_team]
+                    st.session_state.away_counters[away_team],
+                    st.session_state.ha_counters[home_team],
+                    st.session_state.ha_counters[away_team]
                 ])
 
             st.success(f"✅ Added {len(new_matches)} new matches.")
@@ -111,11 +119,11 @@ if parse_clicked:
 if st.session_state.match_data:
     df = pd.DataFrame(
         st.session_state.match_data,
-        columns=["Home Team", "Home Score", "Away Score", "Away Team", "Total-G", "F<4H", "F<4A"]
+        columns=["Home Team", "Home Score", "Away Score", "Away Team", "Total-G", "F<4H", "F<4A", "F!=4HA(Home)", "F!=4HA(Away)"]
     )
 
-    st.subheader("📊 Latest 9 Match Results")
-    st.dataframe(df.tail(9), use_container_width=True)
+    st.subheader("📊 Latest 10 Match Results")
+    st.dataframe(df.tail(10), use_container_width=True)
 
     csv_data = df.to_csv(index=False)
     st.download_button(
@@ -129,6 +137,7 @@ if st.session_state.match_data:
         st.session_state.match_data = []
         st.session_state.home_counters = {team: 0 for team in VALID_TEAMS}
         st.session_state.away_counters = {team: 0 for team in VALID_TEAMS}
+        st.session_state.ha_counters = {team: 0 for team in VALID_TEAMS}
         st.experimental_rerun()
 else:
     st.info("Paste match data to begin building your CSV.")
