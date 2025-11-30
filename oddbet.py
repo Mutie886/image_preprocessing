@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 
+# Allowed team names (case-sensitive)
 VALID_TEAMS = {
     "Leeds","Aston V","Manchester Blue","Liverpool","London Blues","Everton",
     "Brighton","Sheffield U","Tottenham","Palace","Newcastle","West Ham",
@@ -98,23 +99,58 @@ if st.session_state.match_data:
 
     with col2:
         st.subheader("📌 Last 10 Match Summary")
-        summary_box = st.container()
-        with summary_box:
-            for row in df.tail(10).itertuples(index=False):
-                home, away = row[0], row[3]
-                f_ha_home = int(row[7].split(":")[1].split("|")[0].strip())
-                f_ha_away = int(row[7].split(":")[2].strip())
-                status3_home = int(row[8].split(":")[1].split("|")[0].strip())
-                status3_away = int(row[8].split(":")[2].strip())
-                left = f"{home}, [{status3_home} : {f_ha_home}]"
-                right = f"{away}, [{status3_away} : {f_ha_away}]"
-                st.markdown(f"<div style='font-size:14px'>{left} — {right}</div>", unsafe_allow_html=True)
 
-    # Buttons aligned bottom-left
-    with col1:
+        # Styled summary frame
+        st.markdown("""
+            <div style="background-color:black; color:white; padding:15px; border-radius:10px; border:2px solid #444;">
+        """, unsafe_allow_html=True)
+
+        for row in df.tail(10).itertuples(index=False):
+            home, away = row[0], row[3]
+            f_ha_home = int(row[7].split(":")[1].split("|")[0].strip())
+            f_ha_away = int(row[7].split(":")[2].strip())
+            status3_home = int(row[8].split(":")[1].split("|")[0].strip())
+            status3_away = int(row[8].split(":")[2].strip())
+            left = f"{home}, [{status3_home} : {f_ha_home}]"
+            right = f"{away}, [{status3_away} : {f_ha_away}]"
+            st.markdown(f"<div style='font-size:14px; margin-bottom:5px;'>{left} — {right}</div>", unsafe_allow_html=True)
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # Button styling with hover effects
+        st.markdown("""
+            <style>
+            div[data-testid="stDownloadButton"] > button {
+                background-color: #4CAF50 !important; /* Green */
+                color: white !important;
+                border-radius: 8px !important;
+                margin-top: 10px !important;
+                width: 100% !important;
+                transition: 0.3s;
+            }
+            div[data-testid="stDownloadButton"] > button:hover {
+                background-color: #45a049 !important;
+            }
+            div[data-testid="stButton"] > button {
+                background-color: #f44336 !important; /* Red */
+                color: white !important;
+                border-radius: 8px !important;
+                margin-top: 10px !important;
+                width: 100% !important;
+                transition: 0.3s;
+            }
+            div[data-testid="stButton"] > button:hover {
+                background-color: #da190b !important;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+
+        # Download button
         csv_data = df.to_csv(index=False)
         st.download_button("Download Full CSV", data=csv_data,
                            file_name="football_results.csv", mime="text/csv")
+
+        # Clear button
         if st.button("Clear all data"):
             st.session_state.match_data = []
             st.session_state.home_counters = {team: 0 for team in VALID_TEAMS}
