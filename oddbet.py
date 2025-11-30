@@ -47,6 +47,9 @@ def parse_matches(text: str):
             errors.append(f"Non-numeric score: {home_score_raw}/{away_score_raw}")
         if errors: continue
         matches.append([home_team,int(home_score_raw),int(away_score_raw),away_team])
+    
+    # ✅ Reverse order so bottom match is processed first
+    matches.reverse()
     return matches, errors
 
 if parse_clicked and raw_input.strip():
