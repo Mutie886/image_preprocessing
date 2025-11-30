@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from collections import Counter
 
 # Allowed team names (case-sensitive)
 VALID_TEAMS = {
@@ -23,11 +24,6 @@ Only matches between these teams are accepted:
 # Initialize persistent match list and counters
 if "match_data" not in st.session_state:
     st.session_state.match_data = []
-
-# Per-team counters:
-# - F<4H: counts home appearances with Total-G != 4 (reset on == 4)
-# - F<4A: counts away appearances with Total-G != 4 (reset on == 4)
-# - HA: unified per-team counter across home+away with Total-G != 4 (reset on == 4)
 if "home_counters" not in st.session_state:
     st.session_state.home_counters = {team: 0 for team in VALID_TEAMS}
 if "away_counters" not in st.session_state:
@@ -76,6 +72,44 @@ def parse_matches(text: str):
 
     return matches, errors
 
+def classify_status(df):
+    """Classify matches based on most frequent goal range."""
+    ranges = []
+    for val in df["Total-G"]:
+        if val == "Won":
+            continue
+        if isinstance(val, int):
+            if 3 <= val <= 4:
+                ranges.append("Hint 1")
+            elif 2 <= val <= 3:
+                ranges.append("Hint 2")
+            elif 0 <= val <= 1:
+                ranges.append("Hint 3")
+    if not ranges:
+        return [""] * len(df)
+
+    # Find most frequent range
+    freq = Counter(ranges)
+    dominant = freq.most_common(1)[0][0]
+
+    # Assign dominant label to rows that fall in that range, else blank
+    status_col = []
+    for val in df["Total-G"]:
+        if val == "Won":
+            status_col.append("")
+        elif isinstance(val, int):
+            if dominant == "Hint 1" and 3 <= val <= 4:
+                status_col.append("Hint 1")
+            elif dominant == "Hint 2" and 2 <= val <= 3:
+                status_col.append("Hint 2")
+            elif dominant == "Hint 3" and 0 <= val <= 1:
+                status_col.append("Hint 3")
+            else:
+                status_col.append("")
+        else:
+            status_col.append("")
+    return status_col
+
 if parse_clicked:
     if not raw_input.strip():
         st.warning("Please paste your match data first.")
@@ -106,7 +140,7 @@ if parse_clicked:
                     st.session_state.ha_counters[home_team] += 1
                     st.session_state.ha_counters[away_team] += 1
 
-                # Single column F!=4HA should reflect both teams' unified counters for this match
+                # Unified counter string
                 f_ne_4_ha_str = f"{home_team}: {st.session_state.ha_counters[home_team]} | {away_team}: {st.session_state.ha_counters[away_team]}"
 
                 # Append match row
@@ -129,6 +163,9 @@ if st.session_state.match_data:
         st.session_state.match_data,
         columns=["Home Team", "Home Score", "Away Score", "Away Team", "Total-G", "F<4H", "F<4A", "F!=4HA"]
     )
+
+    # Add Status column
+    df["Status"] = classify_status(df)
 
     st.subheader("📊 Latest 10 Match Results")
     st.dataframe(df.tail(10), use_container_width=True)
