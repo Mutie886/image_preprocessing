@@ -99,13 +99,12 @@ if parse_clicked:
 
                 # Reset or increment counters
                 if total_g_value == 4:
-                    # Reset all counters
+                    # Reset F counters only
                     st.session_state.home_counters[home_team] = 0
                     st.session_state.away_counters[away_team] = 0
                     st.session_state.ha_counters[home_team] = 0
                     st.session_state.ha_counters[away_team] = 0
-                    st.session_state.status3_counters[home_team] = 0
-                    st.session_state.status3_counters[away_team] = 0
+                    # Status3 is NOT reset by "Won"
                 else:
                     # Increment F counters when Total-G != 4
                     st.session_state.home_counters[home_team] += 1
@@ -113,7 +112,7 @@ if parse_clicked:
                     st.session_state.ha_counters[home_team] += 1
                     st.session_state.ha_counters[away_team] += 1
 
-                    # Status3 logic: increment when Total-G != 3, reset when == 3
+                    # Status3 logic: reset only when Total-G == 3 ✔, else increment
                     if total_g_value == 3:
                         st.session_state.status3_counters[home_team] = 0
                         st.session_state.status3_counters[away_team] = 0
@@ -123,6 +122,9 @@ if parse_clicked:
 
                 # Unified F!=4HA string
                 f_ne_4_ha_str = f"{home_team}: {st.session_state.ha_counters[home_team]} | {away_team}: {st.session_state.ha_counters[away_team]}"
+
+                # Status3 string
+                status3_str = f"{home_team}: {st.session_state.status3_counters[home_team]} | {away_team}: {st.session_state.status3_counters[away_team]}"
 
                 # Append match row
                 st.session_state.match_data.append([
@@ -134,7 +136,7 @@ if parse_clicked:
                     st.session_state.home_counters[home_team],
                     st.session_state.away_counters[away_team],
                     f_ne_4_ha_str,
-                    f"{home_team}: {st.session_state.status3_counters[home_team]} | {away_team}: {st.session_state.status3_counters[away_team]}"
+                    status3_str
                 ])
 
             st.success(f"✅ Added {len(new_matches)} new matches.")
