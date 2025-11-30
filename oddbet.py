@@ -23,11 +23,11 @@ if "ha_counters" not in st.session_state:
 if "status3_counters" not in st.session_state:
     st.session_state.status3_counters = {team: 0 for team in VALID_TEAMS}
 
-# Two-column layout
+# Two equal columns
 col1, col2 = st.columns([1,1])
 
 with col1:
-    raw_input = st.text_area("Paste your match data here", height=300,
+    raw_input = st.text_area("Paste match data", height=200,
                              placeholder="Home Team\nHome Score\nAway Score\nAway Team\n...")
     parse_clicked = st.button("Parse and Add")
 
@@ -91,30 +91,34 @@ if parse_clicked and raw_input.strip():
             ])
         st.success(f"✅ Added {len(new_matches)} new matches.")
 
-# Display results
+# Display summary in right column
 if st.session_state.match_data:
     df = pd.DataFrame(st.session_state.match_data,
         columns=["Home Team","Home Score","Away Score","Away Team","Total-G","F<4H","F<4A","F!=4HA","Status3"])
 
     with col2:
         st.subheader("📌 Last 10 Match Summary")
-        for row in df.tail(10).itertuples(index=False):
-            home, away = row[0], row[3]
-            f_ha_home = int(row[7].split(":")[1].split("|")[0].strip())
-            f_ha_away = int(row[7].split(":")[2].strip())
-            status3_home = int(row[8].split(":")[1].split("|")[0].strip())
-            status3_away = int(row[8].split(":")[2].strip())
-            left = f"{home}, [{status3_home} : {f_ha_home}]"
-            right = f"{away}, [{status3_away} : {f_ha_away}]"
-            st.write(f"{left} — {right}")
+        summary_box = st.container()
+        with summary_box:
+            for row in df.tail(10).itertuples(index=False):
+                home, away = row[0], row[3]
+                f_ha_home = int(row[7].split(":")[1].split("|")[0].strip())
+                f_ha_away = int(row[7].split(":")[2].strip())
+                status3_home = int(row[8].split(":")[1].split("|")[0].strip())
+                status3_away = int(row[8].split(":")[2].strip())
+                left = f"{home}, [{status3_home} : {f_ha_home}]"
+                right = f"{away}, [{status3_away} : {f_ha_away}]"
+                st.markdown(f"<div style='font-size:14px'>{left} — {right}</div>", unsafe_allow_html=True)
 
-    # Buttons below both columns
-    csv_data = df.to_csv(index=False)
-    st.download_button("Download Full CSV", data=csv_data, file_name="football_results.csv", mime="text/csv")
-    if st.button("Clear all data"):
-        st.session_state.match_data = []
-        st.session_state.home_counters = {team: 0 for team in VALID_TEAMS}
-        st.session_state.away_counters = {team: 0 for team in VALID_TEAMS}
-        st.session_state.ha_counters = {team: 0 for team in VALID_TEAMS}
-        st.session_state.status3_counters = {team: 0 for team in VALID_TEAMS}
-        st.experimental_rerun()
+    # Buttons aligned bottom-left
+    with col1:
+        csv_data = df.to_csv(index=False)
+        st.download_button("Download Full CSV", data=csv_data,
+                           file_name="football_results.csv", mime="text/csv")
+        if st.button("Clear all data"):
+            st.session_state.match_data = []
+            st.session_state.home_counters = {team: 0 for team in VALID_TEAMS}
+            st.session_state.away_counters = {team: 0 for team in VALID_TEAMS}
+            st.session_state.ha_counters = {team: 0 for team in VALID_TEAMS}
+            st.session_state.status3_counters = {team: 0 for team in VALID_TEAMS}
+            st.experimental_rerun()
