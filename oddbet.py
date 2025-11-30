@@ -11,7 +11,7 @@ VALID_TEAMS = {
 
 # Page setup
 st.set_page_config(page_title="Football Results CSV", page_icon="⚽", layout="centered")
-st.title("🐍 Paste Football Results to CSV")
+st.title("⚽ Paste Football Results to CSV")
 
 st.markdown("""
 Paste your match data below using this 4-line pattern, repeated for each match:
@@ -109,7 +109,7 @@ if parse_clicked:
                     st.session_state.ha_counters[home_team] += 1
                     st.session_state.ha_counters[away_team] += 1
 
-                # Status3 logic: reset only on Total-G == 3 ✔
+                # ✅ Status3 logic: independent from "Won"
                 if total_g_value == 3:
                     st.session_state.status3_counters[home_team] = 0
                     st.session_state.status3_counters[away_team] = 0
