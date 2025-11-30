@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-from collections import Counter
 
 # Allowed team names (case-sensitive)
 VALID_TEAMS = {
@@ -30,6 +29,8 @@ if "away_counters" not in st.session_state:
     st.session_state.away_counters = {team: 0 for team in VALID_TEAMS}
 if "ha_counters" not in st.session_state:
     st.session_state.ha_counters = {team: 0 for team in VALID_TEAMS}
+if "status3_counters" not in st.session_state:
+    st.session_state.status3_counters = {team: 0 for team in VALID_TEAMS}
 
 # Input area
 raw_input = st.text_area(
@@ -72,44 +73,6 @@ def parse_matches(text: str):
 
     return matches, errors
 
-def classify_status(df):
-    """Classify matches based on most frequent goal range."""
-    ranges = []
-    for val in df["Total-G"]:
-        if val == "Won":
-            continue
-        if isinstance(val, int):
-            if 3 <= val <= 4:
-                ranges.append("Hint 1")
-            elif 2 <= val <= 3:
-                ranges.append("Hint 2")
-            elif 0 <= val <= 1:
-                ranges.append("Hint 3")
-    if not ranges:
-        return [""] * len(df)
-
-    # Find most frequent range
-    freq = Counter(ranges)
-    dominant = freq.most_common(1)[0][0]
-
-    # Assign dominant label to rows that fall in that range, else blank
-    status_col = []
-    for val in df["Total-G"]:
-        if val == "Won":
-            status_col.append("")
-        elif isinstance(val, int):
-            if dominant == "Hint 1" and 3 <= val <= 4:
-                status_col.append("Hint 1")
-            elif dominant == "Hint 2" and 2 <= val <= 3:
-                status_col.append("Hint 2")
-            elif dominant == "Hint 3" and 0 <= val <= 1:
-                status_col.append("Hint 3")
-            else:
-                status_col.append("")
-        else:
-            status_col.append("")
-    return status_col
-
 if parse_clicked:
     if not raw_input.strip():
         st.warning("Please paste your match data first.")
@@ -125,22 +88,40 @@ if parse_clicked:
             # Update counters and add matches
             for home_team, home_score, away_score, away_team in new_matches:
                 total_g_value = home_score + away_score
-                total_g_display = "Won" if total_g_value == 4 else total_g_value
 
+                # Display logic for Total-G
                 if total_g_value == 4:
-                    # Reset counters for both teams on "Won"
+                    total_g_display = "Won"
+                elif total_g_value == 3:
+                    total_g_display = "3 ✔"
+                else:
+                    total_g_display = total_g_value
+
+                # Reset or increment counters
+                if total_g_value == 4:
+                    # Reset all counters
                     st.session_state.home_counters[home_team] = 0
                     st.session_state.away_counters[away_team] = 0
                     st.session_state.ha_counters[home_team] = 0
                     st.session_state.ha_counters[away_team] = 0
+                    st.session_state.status3_counters[home_team] = 0
+                    st.session_state.status3_counters[away_team] = 0
                 else:
-                    # Increment when Total-G != 4
+                    # Increment F counters when Total-G != 4
                     st.session_state.home_counters[home_team] += 1
                     st.session_state.away_counters[away_team] += 1
                     st.session_state.ha_counters[home_team] += 1
                     st.session_state.ha_counters[away_team] += 1
 
-                # Unified counter string
+                    # Status3 logic: increment when Total-G != 3, reset when == 3
+                    if total_g_value == 3:
+                        st.session_state.status3_counters[home_team] = 0
+                        st.session_state.status3_counters[away_team] = 0
+                    else:
+                        st.session_state.status3_counters[home_team] += 1
+                        st.session_state.status3_counters[away_team] += 1
+
+                # Unified F!=4HA string
                 f_ne_4_ha_str = f"{home_team}: {st.session_state.ha_counters[home_team]} | {away_team}: {st.session_state.ha_counters[away_team]}"
 
                 # Append match row
@@ -152,7 +133,8 @@ if parse_clicked:
                     total_g_display,
                     st.session_state.home_counters[home_team],
                     st.session_state.away_counters[away_team],
-                    f_ne_4_ha_str
+                    f_ne_4_ha_str,
+                    f"{home_team}: {st.session_state.status3_counters[home_team]} | {away_team}: {st.session_state.status3_counters[away_team]}"
                 ])
 
             st.success(f"✅ Added {len(new_matches)} new matches.")
@@ -161,11 +143,8 @@ if parse_clicked:
 if st.session_state.match_data:
     df = pd.DataFrame(
         st.session_state.match_data,
-        columns=["Home Team", "Home Score", "Away Score", "Away Team", "Total-G", "F<4H", "F<4A", "F!=4HA"]
+        columns=["Home Team", "Home Score", "Away Score", "Away Team", "Total-G", "F<4H", "F<4A", "F!=4HA", "Status3"]
     )
-
-    # Add Status column
-    df["Status"] = classify_status(df)
 
     st.subheader("📊 Latest 10 Match Results")
     st.dataframe(df.tail(10), use_container_width=True)
@@ -183,6 +162,7 @@ if st.session_state.match_data:
         st.session_state.home_counters = {team: 0 for team in VALID_TEAMS}
         st.session_state.away_counters = {team: 0 for team in VALID_TEAMS}
         st.session_state.ha_counters = {team: 0 for team in VALID_TEAMS}
+        st.session_state.status3_counters = {team: 0 for team in VALID_TEAMS}
         st.experimental_rerun()
 else:
     st.info("Paste match data to begin building your CSV.")
