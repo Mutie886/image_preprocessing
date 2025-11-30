@@ -11,7 +11,7 @@ VALID_TEAMS = {
 
 # Page setup
 st.set_page_config(page_title="Football Results CSV", page_icon="⚽", layout="centered")
-st.title("⚽ Paste Football Results to CSV")
+st.title("🐍 Paste Football Results to CSV")
 
 st.markdown("""
 Paste your match data below using this 4-line pattern, repeated for each match:
@@ -85,11 +85,10 @@ if parse_clicked:
                 for e in errors:
                     st.write(f"- {e}")
         elif new_matches:
-            # Update counters and add matches
             for home_team, home_score, away_score, away_team in new_matches:
                 total_g_value = home_score + away_score
 
-                # Display logic for Total-G
+                # Total-G display logic
                 if total_g_value == 4:
                     total_g_display = "Won"
                 elif total_g_value == 3:
@@ -97,36 +96,32 @@ if parse_clicked:
                 else:
                     total_g_display = total_g_value
 
-                # Reset or increment counters
+                # F counters reset on "Won"
                 if total_g_value == 4:
-                    # Reset F counters only
                     st.session_state.home_counters[home_team] = 0
                     st.session_state.away_counters[away_team] = 0
                     st.session_state.ha_counters[home_team] = 0
                     st.session_state.ha_counters[away_team] = 0
-                    # Status3 is NOT reset by "Won"
+                    # Status3 is NOT reset here
                 else:
-                    # Increment F counters when Total-G != 4
                     st.session_state.home_counters[home_team] += 1
                     st.session_state.away_counters[away_team] += 1
                     st.session_state.ha_counters[home_team] += 1
                     st.session_state.ha_counters[away_team] += 1
 
-                    # Status3 logic: reset only when Total-G == 3 ✔, else increment
-                    if total_g_value == 3:
-                        st.session_state.status3_counters[home_team] = 0
-                        st.session_state.status3_counters[away_team] = 0
-                    else:
-                        st.session_state.status3_counters[home_team] += 1
-                        st.session_state.status3_counters[away_team] += 1
+                # Status3 logic: reset only on Total-G == 3 ✔
+                if total_g_value == 3:
+                    st.session_state.status3_counters[home_team] = 0
+                    st.session_state.status3_counters[away_team] = 0
+                else:
+                    st.session_state.status3_counters[home_team] += 1
+                    st.session_state.status3_counters[away_team] += 1
 
-                # Unified F!=4HA string
+                # Format counters
                 f_ne_4_ha_str = f"{home_team}: {st.session_state.ha_counters[home_team]} | {away_team}: {st.session_state.ha_counters[away_team]}"
-
-                # Status3 string
                 status3_str = f"{home_team}: {st.session_state.status3_counters[home_team]} | {away_team}: {st.session_state.status3_counters[away_team]}"
 
-                # Append match row
+                # Append row
                 st.session_state.match_data.append([
                     home_team,
                     home_score,
