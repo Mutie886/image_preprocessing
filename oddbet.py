@@ -31,9 +31,6 @@ if "clear_text" not in st.session_state:
 col1, col2 = st.columns([1, 1])
 
 with col1:
-    # Create a key for the text_area to force re-render when clearing
-    text_area_key = "match_input"
-    
     # Check if we need to clear the text area
     if st.session_state.clear_text:
         default_text = ""
@@ -44,7 +41,7 @@ with col1:
     raw_input = st.text_area("Paste match data (with dates/times - will be cleaned automatically)", 
                             height=200,
                             value=default_text,
-                            key=text_area_key,
+                            key="match_input",
                             placeholder="Paste your messy data here, e.g.:\nAston V\n1\n2\nSheffield U\nEnglish League WEEK 17 - #2025122312\n3:58 pm\nSouthampton\n2\n0\nEverton\n...")
     
     parse_clicked = st.button("Parse and Add")
@@ -185,7 +182,11 @@ if parse_clicked and raw_input.strip():
     
     # Set flag to clear text area after processing
     st.session_state.clear_text = True
-    st.experimental_rerun()
+    # Use try-except to handle different Streamlit versions
+    try:
+        st.rerun()  # For newer Streamlit versions
+    except:
+        st.experimental_rerun()  # For older Streamlit versions
 
 # Display summary in right column (same as before)
 if st.session_state.match_data:
@@ -252,4 +253,8 @@ if st.session_state.match_data:
             st.session_state.away_counters = {team: 0 for team in VALID_TEAMS}
             st.session_state.ha_counters = {team: 0 for team in VALID_TEAMS}
             st.session_state.status3_counters = {team: 0 for team in VALID_TEAMS}
-            st.experimental_rerun()
+            # Use try-except to handle different Streamlit versions
+            try:
+                st.rerun()  # For newer Streamlit versions
+            except:
+                st.experimental_rerun()  # For older Streamlit versions
