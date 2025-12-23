@@ -24,26 +24,30 @@ if "ha_counters" not in st.session_state:
     st.session_state.ha_counters = {team: 0 for team in VALID_TEAMS}
 if "status3_counters" not in st.session_state:
     st.session_state.status3_counters = {team: 0 for team in VALID_TEAMS}
+if "clear_text" not in st.session_state:
+    st.session_state.clear_text = False
 
 # Two equal columns
 col1, col2 = st.columns([1, 1])
 
 with col1:
+    # Create a key for the text_area to force re-render when clearing
+    text_area_key = "match_input"
+    
+    # Check if we need to clear the text area
+    if st.session_state.clear_text:
+        default_text = ""
+        st.session_state.clear_text = False
+    else:
+        default_text = ""
+    
     raw_input = st.text_area("Paste match data (with dates/times - will be cleaned automatically)", 
                             height=200,
+                            value=default_text,
+                            key=text_area_key,
                             placeholder="Paste your messy data here, e.g.:\nAston V\n1\n2\nSheffield U\nEnglish League WEEK 17 - #2025122312\n3:58 pm\nSouthampton\n2\n0\nEverton\n...")
     
     parse_clicked = st.button("Parse and Add")
-    
-    # Show what the cleaner will do
-    with st.expander("🔧 Data Cleaner Rules"):
-        st.markdown("""
-        The cleaner will automatically:
-        - Remove lines containing: 'WEEK', 'pm', 'am', 'English League', '#'
-        - Remove time patterns like '3:58 pm'
-        - Remove date patterns like '2025122312'
-        - Keep only team names and scores
-        """)
 
 def clean_and_parse_matches(text: str):
     """
@@ -122,25 +126,10 @@ def clean_and_parse_matches(text: str):
     # Reverse order so bottom match is processed first
     matches.reverse()
     
-    # Show cleaning summary
-    if matches:
-        st.info(f"✅ Cleaned {len(lines)} lines → {len(cleaned_lines)} valid items → {len(matches)} matches")
-    
     return matches, errors, cleaned_lines
 
 if parse_clicked and raw_input.strip():
     new_matches, errors, cleaned_lines = clean_and_parse_matches(raw_input)
-    
-    # Show what was cleaned
-    with st.expander("🔍 Show Cleaning Process"):
-        st.write("**Original lines:**")
-        st.write([line.strip() for line in raw_input.splitlines() if line.strip()])
-        st.write("**Cleaned lines:**")
-        st.write(cleaned_lines)
-        if new_matches:
-            st.write("**Parsed matches:**")
-            for m in new_matches:
-                st.write(f"{m[0]} {m[1]}-{m[2]} {m[3]}")
     
     if errors:
         st.error(f"❌ Found {len(errors)} parsing errors:")
@@ -152,7 +141,7 @@ if parse_clicked and raw_input.strip():
     else:
         st.success(f"✅ Successfully parsed {len(new_matches)} matches from cleaned data.")
     
-    # Process the matches (same as before)
+    # Process the matches
     for home_team, home_score, away_score, away_team in new_matches:
         total_g_value = home_score + away_score
         if total_g_value == 4:
@@ -193,6 +182,10 @@ if parse_clicked and raw_input.strip():
     
     if new_matches:
         st.success(f"✅ Added {len(new_matches)} new matches to dashboard.")
+    
+    # Set flag to clear text area after processing
+    st.session_state.clear_text = True
+    st.experimental_rerun()
 
 # Display summary in right column (same as before)
 if st.session_state.match_data:
@@ -260,41 +253,3 @@ if st.session_state.match_data:
             st.session_state.ha_counters = {team: 0 for team in VALID_TEAMS}
             st.session_state.status3_counters = {team: 0 for team in VALID_TEAMS}
             st.experimental_rerun()
-
-# Add a helper section
-with st.sidebar:
-    st.subheader("📋 Data Format Helper")
-    st.markdown("""
-    **You can paste messy data like:**
-    ```
-    Aston V
-    1
-    2
-    Sheffield U
-    English League WEEK 17 - #2025122312
-    3:58 pm
-    Southampton
-    2
-    0
-    Everton
-    ```
-    
-    **The cleaner will extract:**
-    ```
-    Aston V
-    1
-    2
-    Sheffield U
-    Southampton
-    2
-    0
-    Everton
-    ```
-    
-    **Valid Team Names:**
-    - Leeds, Aston V, Manchester Blue, Liverpool
-    - London Blues, Everton, Brighton, Sheffield U
-    - Tottenham, Palace, Newcastle, West Ham
-    - Leicester, West Brom, Burnley, London Reds
-    - Southampton, Wolves, Fulham, Manchester Reds
-    """)
