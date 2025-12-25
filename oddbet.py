@@ -118,7 +118,7 @@ def calculate_team_metrics():
             "loss_rate": round(loss_rate, 1),
             "avg_gf": round(avg_gf, 2),
             "avg_ga": round(avg_ga, 2),
-            "bts_rate": round(bts_rate, 1),
+            "bts_rate": min(100, round(bts_rate, 1)),  # Ensure max 100%
             "form": stats["Form"][-5:] if len(stats["Form"]) >= 5 else stats["Form"],
             "points_per_game": round(stats["Pts"] / total_matches, 2) if total_matches > 0 else 0,
         }
@@ -157,17 +157,18 @@ def predict_match_outcome(home_team, away_team, team_metrics):
     over_3_5_prob = min(70, max(5, (total_goals_expected - 2.5) * 25))
     over_4_5_prob = min(50, max(2, (total_goals_expected - 3.5) * 20))
     
-    # Both teams score probability
+    # Both teams score probability - FIXED: Ensure it's between 0-100
     both_teams_score_prob = (home_metrics["bts_rate"] + away_metrics["bts_rate"]) / 2
+    both_teams_score_prob = min(100, max(0, both_teams_score_prob))  # Clamp between 0-100
     
     return {
-        "home_win": round(home_win_prob, 1),
-        "away_win": round(away_win_prob, 1),
-        "draw": round(draw_prob, 1),
-        "over_2_5": round(over_2_5_prob, 1),
-        "over_3_5": round(over_3_5_prob, 1),
-        "over_4_5": round(over_4_5_prob, 1),
-        "both_teams_score": round(both_teams_score_prob, 1),
+        "home_win": min(100, max(0, round(home_win_prob, 1))),
+        "away_win": min(100, max(0, round(away_win_prob, 1))),
+        "draw": min(100, max(0, round(draw_prob, 1))),
+        "over_2_5": min(100, max(0, round(over_2_5_prob, 1))),
+        "over_3_5": min(100, max(0, round(over_3_5_prob, 1))),
+        "over_4_5": min(100, max(0, round(over_4_5_prob, 1))),
+        "both_teams_score": min(100, max(0, round(both_teams_score_prob, 1))),
         "expected_goals": round(total_goals_expected, 2),
         "predicted_score": f"{round(home_metrics['avg_gf'], 1)}-{round(away_metrics['avg_gf'], 1)}"
     }
@@ -226,9 +227,9 @@ def create_head_to_head_stats(home_team, away_team):
             stats["both_teams_score"] += 1
     
     stats["avg_goals"] = round(total_goals / len(h2h_matches), 2)
-    stats["over_2_5_pct"] = round(stats["over_2_5"] / len(h2h_matches) * 100, 1)
-    stats["over_3_5_pct"] = round(stats["over_3_5"] / len(h2h_matches) * 100, 1)
-    stats["both_teams_score_pct"] = round(stats["both_teams_score"] / len(h2h_matches) * 100, 1)
+    stats["over_2_5_pct"] = min(100, round(stats["over_2_5"] / len(h2h_matches) * 100, 1))
+    stats["over_3_5_pct"] = min(100, round(stats["over_3_5"] / len(h2h_matches) * 100, 1))
+    stats["both_teams_score_pct"] = min(100, round(stats["both_teams_score"] / len(h2h_matches) * 100, 1))
     
     return stats
 
@@ -384,7 +385,9 @@ with col2:
     st.markdown("### 🛠️ Quick Actions")
     
     # Season info
-    max_matches = max([st.session_state.team_stats[team]["P"] for team in VALID_TEAMS]) if st.session_state.team_stats else 0
+    max_matches = 0
+    if st.session_state.team_stats:
+        max_matches = max([st.session_state.team_stats[team]["P"] for team in VALID_TEAMS])
     st.metric("📅 Current Season", f"Season {st.session_state.season_number}", 
               f"{max_matches}/38 matches")
     
@@ -649,9 +652,8 @@ if len(st.session_state.match_data) > 0:
         
         # Calculate stats for current season only
         current_season_matches = [m for m in st.session_state.match_data if m[-2] == st.session_state.season_number]
-        current_df = pd.DataFrame(current_season_matches, columns=column_names) if current_season_matches else pd.DataFrame()
-        
-        if len(current_df) > 0:
+        if current_season_matches:
+            current_df = pd.DataFrame(current_season_matches, columns=column_names)
             avg_goals = current_df["Total_Goals"].mean()
             home_wins = len(current_df[current_df["Match_Result"] == "Home Win"])
             away_wins = len(current_df[current_df["Match_Result"] == "Away Win"])
@@ -687,40 +689,47 @@ if len(st.session_state.match_data) > 0:
         # Display predictions in columns
         st.subheader("📈 Match Predictions")
         
-        # Outcome probabilities
+        # Outcome probabilities - FIXED: Ensure progress values are between 0-1
         outcome_col1, outcome_col2, outcome_col3 = st.columns(3)
         
         with outcome_col1:
+            home_win_value = min(1.0, max(0.0, predictions['home_win'] / 100))
             st.metric("🏠 Home Win", f"{predictions['home_win']}%")
-            st.progress(predictions['home_win'] / 100)
+            st.progress(home_win_value)
         
         with outcome_col2:
+            draw_value = min(1.0, max(0.0, predictions['draw'] / 100))
             st.metric("🤝 Draw", f"{predictions['draw']}%")
-            st.progress(predictions['draw'] / 100)
+            st.progress(draw_value)
         
         with outcome_col3:
+            away_win_value = min(1.0, max(0.0, predictions['away_win'] / 100))
             st.metric("✈️ Away Win", f"{predictions['away_win']}%")
-            st.progress(predictions['away_win'] / 100)
+            st.progress(away_win_value)
         
-        # Goal markets
+        # Goal markets - FIXED: Ensure progress values are between 0-1
         st.subheader("⚽ Goal Markets")
         goal_col1, goal_col2, goal_col3, goal_col4 = st.columns(4)
         
         with goal_col1:
+            over_2_5_value = min(1.0, max(0.0, predictions['over_2_5'] / 100))
             st.metric("Over 2.5 Goals", f"{predictions['over_2_5']}%")
-            st.progress(predictions['over_2_5'] / 100)
+            st.progress(over_2_5_value)
         
         with goal_col2:
+            over_3_5_value = min(1.0, max(0.0, predictions['over_3_5'] / 100))
             st.metric("Over 3.5 Goals", f"{predictions['over_3_5']}%")
-            st.progress(predictions['over_3_5'] / 100)
+            st.progress(over_3_5_value)
         
         with goal_col3:
+            over_4_5_value = min(1.0, max(0.0, predictions['over_4_5'] / 100))
             st.metric("Over 4.5 Goals", f"{predictions['over_4_5']}%")
-            st.progress(predictions['over_4_5'] / 100)
+            st.progress(over_4_5_value)
         
         with goal_col4:
+            bts_value = min(1.0, max(0.0, predictions['both_teams_score'] / 100))
             st.metric("Both Teams Score", f"{predictions['both_teams_score']}%")
-            st.progress(predictions['both_teams_score'] / 100)
+            st.progress(bts_value)
         
         # Expected goals
         col_exp1, col_exp2 = st.columns(2)
@@ -874,7 +883,9 @@ if len(st.session_state.match_data) > 0:
         )
     
     # Season reset warning
-    max_played = max([st.session_state.team_stats[team]["P"] for team in VALID_TEAMS]) if st.session_state.team_stats else 0
+    max_played = 0
+    if st.session_state.team_stats:
+        max_played = max([st.session_state.team_stats[team]["P"] for team in VALID_TEAMS])
     if max_played >= 35:
         st.warning(f"⚠️ **Season End Approaching**: Teams have played up to {max_played}/38 matches. "
                   f"Season {st.session_state.season_number} will reset automatically when any team reaches 38 matches.")
