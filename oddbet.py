@@ -23,8 +23,6 @@ if "away_counters" not in st.session_state:
     st.session_state.away_counters = {team: 0 for team in VALID_TEAMS}
 if "ha_counters" not in st.session_state:
     st.session_state.ha_counters = {team: 0 for team in VALID_TEAMS}
-if "status3_counters" not in st.session_state:
-    st.session_state.status3_counters = {team: 0 for team in VALID_TEAMS}
 if "team_stats" not in st.session_state:
     st.session_state.team_stats = {
         team: {
@@ -208,7 +206,6 @@ def reset_league_for_new_season():
     st.session_state.home_counters = {team: 0 for team in VALID_TEAMS}
     st.session_state.away_counters = {team: 0 for team in VALID_TEAMS}
     st.session_state.ha_counters = {team: 0 for team in VALID_TEAMS}
-    st.session_state.status3_counters = {team: 0 for team in VALID_TEAMS}
     
     st.session_state.season_number += 1
     st.session_state.match_counter = 1
@@ -572,13 +569,6 @@ if parse_clicked and raw_input.strip():
                 st.session_state.ha_counters[home_team] += 1
                 st.session_state.ha_counters[away_team] += 1
 
-            if total_goals == 3:
-                st.session_state.status3_counters[home_team] = 0
-                st.session_state.status3_counters[away_team] = 0
-            else:
-                st.session_state.status3_counters[home_team] += 1
-                st.session_state.status3_counters[away_team] += 1
-            
             # Update team stats - INCLUDING HOME/AWAY SPECIFIC
             st.session_state.team_stats[home_team]["P"] += 1
             st.session_state.team_stats[home_team]["GF"] += home_score
@@ -648,10 +638,7 @@ if parse_clicked and raw_input.strip():
                 st.session_state.away_counters[away_team],
                 st.session_state.ha_counters[home_team],
                 st.session_state.ha_counters[away_team],
-                st.session_state.status3_counters[home_team],
-                st.session_state.status3_counters[away_team],
                 f"{home_team}: {st.session_state.ha_counters[home_team]} | {away_team}: {st.session_state.ha_counters[away_team]}",
-                f"{home_team}: {st.session_state.status3_counters[home_team]} | {away_team}: {st.session_state.status3_counters[away_team]}",
                 st.session_state.season_number,
                 f"Season {st.session_state.season_number}"
             ])
@@ -671,8 +658,8 @@ if len(st.session_state.match_data) > 0:
         "Both_Teams_Scored", "Over_Under", "Home_Rank", "Away_Rank",
         "Games_Since_Last_Won_Home", "Games_Since_Last_Won_Away",
         "Games_Since_Last_Won_Combined_Home", "Games_Since_Last_Won_Combined_Away",
-        "Games_Since_Last_3Goals_Home", "Games_Since_Last_3Goals_Away",
-        "F!=4HA", "Status3", "Season_Number", "Season_Label"
+        "F!=4HA",
+        "Season_Number", "Season_Label"
     ]
     
     df = pd.DataFrame(st.session_state.match_data, columns=column_names)
@@ -779,27 +766,6 @@ if len(st.session_state.match_data) > 0:
         else:
             st.metric("Total Matches", total_matches)
             st.metric("All-time Matches", total_matches)
-        
-        st.subheader("📊 Status3 Summary")
-        
-        st.markdown("""
-            <div style="background-color:black; color:white; padding:15px; border-radius:10px; border:2px solid #444;">
-        """, unsafe_allow_html=True)
-        
-        recent_matches_for_status3 = st.session_state.match_data[-20:] if len(st.session_state.match_data) > 0 else []
-        
-        for match in recent_matches_for_status3[::-1]:
-            status3_string = match[21] if len(match) > 21 else "No Status3 data"
-            
-            st.markdown(
-                f"<div style='font-size:14px; margin-bottom:5px;'>{status3_string}</div>", 
-                unsafe_allow_html=True
-            )
-        
-        if len(recent_matches_for_status3) == 0:
-            st.markdown("<div style='color:#888; text-align:center;'>No matches yet</div>", unsafe_allow_html=True)
-        
-        st.markdown("</div>", unsafe_allow_html=True)
     
     st.markdown("---")
     st.header("🎯 Match Predictor & Analytics")
