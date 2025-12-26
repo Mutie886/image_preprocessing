@@ -160,6 +160,15 @@ def predict_match_outcome(home_team, away_team, team_metrics):
     # Both teams score probability
     both_teams_score_prob = (home_metrics["bts_rate"] + away_metrics["bts_rate"]) / 2
     
+    # FIX: Ensure all probabilities are within 0-100 range
+    home_win_prob = max(0, min(100, home_win_prob))
+    away_win_prob = max(0, min(100, away_win_prob))
+    draw_prob = max(0, min(100, draw_prob))
+    over_2_5_prob = max(0, min(100, over_2_5_prob))
+    over_3_5_prob = max(0, min(100, over_3_5_prob))
+    over_4_5_prob = max(0, min(100, over_4_5_prob))
+    both_teams_score_prob = max(0, min(100, both_teams_score_prob))
+    
     return {
         "home_win": round(home_win_prob, 1),
         "away_win": round(away_win_prob, 1),
@@ -692,15 +701,21 @@ if len(st.session_state.match_data) > 0:
         
         with outcome_col1:
             st.metric("🏠 Home Win", f"{predictions['home_win']}%")
-            st.progress(predictions['home_win'] / 100)
+            # FIX: Add error handling for progress bar
+            progress_value = min(1.0, max(0.0, predictions['home_win'] / 100))
+            st.progress(progress_value)
         
         with outcome_col2:
             st.metric("🤝 Draw", f"{predictions['draw']}%")
-            st.progress(predictions['draw'] / 100)
+            # FIX: Add error handling for progress bar
+            progress_value = min(1.0, max(0.0, predictions['draw'] / 100))
+            st.progress(progress_value)
         
         with outcome_col3:
             st.metric("✈️ Away Win", f"{predictions['away_win']}%")
-            st.progress(predictions['away_win'] / 100)
+            # FIX: Add error handling for progress bar
+            progress_value = min(1.0, max(0.0, predictions['away_win'] / 100))
+            st.progress(progress_value)
         
         # Goal markets
         st.subheader("⚽ Goal Markets")
@@ -708,19 +723,27 @@ if len(st.session_state.match_data) > 0:
         
         with goal_col1:
             st.metric("Over 2.5 Goals", f"{predictions['over_2_5']}%")
-            st.progress(predictions['over_2_5'] / 100)
+            # FIX: Add error handling for progress bar
+            progress_value = min(1.0, max(0.0, predictions['over_2_5'] / 100))
+            st.progress(progress_value)
         
         with goal_col2:
             st.metric("Over 3.5 Goals", f"{predictions['over_3_5']}%")
-            st.progress(predictions['over_3_5'] / 100)
+            # FIX: Add error handling for progress bar
+            progress_value = min(1.0, max(0.0, predictions['over_3_5'] / 100))
+            st.progress(progress_value)
         
         with goal_col3:
             st.metric("Over 4.5 Goals", f"{predictions['over_4_5']}%")
-            st.progress(predictions['over_4_5'] / 100)
+            # FIX: Add error handling for progress bar
+            progress_value = min(1.0, max(0.0, predictions['over_4_5'] / 100))
+            st.progress(progress_value)
         
         with goal_col4:
             st.metric("Both Teams Score", f"{predictions['both_teams_score']}%")
-            st.progress(predictions['both_teams_score'] / 100)
+            # FIX: Add error handling for progress bar
+            progress_value = min(1.0, max(0.0, predictions['both_teams_score'] / 100))
+            st.progress(progress_value)
         
         # Expected goals
         col_exp1, col_exp2 = st.columns(2)
