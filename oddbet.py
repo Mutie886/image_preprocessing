@@ -559,7 +559,8 @@ if len(st.session_state.match_data) > 0:
     st.header(f"📊 Season {st.session_state.season_number} Dashboard")
     
     # Row 1: League Table and Recent Matches
-    col_league, col_recent = st.columns([2, 1])
+    # MODIFIED: Reduced League Table width from [2, 1] to [1.5, 1]
+    col_league, col_recent = st.columns([1.5, 1])
     
     with col_league:
         st.subheader(f"🏆 Season {st.session_state.season_number} League Table")
