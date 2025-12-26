@@ -677,9 +677,20 @@ if len(st.session_state.match_data) > 0:
         recent_matches_for_status3 = st.session_state.match_data[-20:] if len(st.session_state.match_data) > 0 else []
         
         for match in recent_matches_for_status3[::-1]:  # Reverse to show newest first
-            # Get the pre-formatted Status3 string from index 21
-            # The format is already: "HomeTeam: X | AwayTeam: Y"
-            status3_string = match[21] if len(match) > 21 else "No Status3 data"
+            # Get the correct Status3 data
+            # The Status3 string is at index 20 (0-indexed, so 21st item)
+            # The format should be: "HomeTeam: X | AwayTeam: Y"
+            home_team = match[1]
+            away_team = match[4]
+            
+            # Get the raw Status3 counters from indices 18 and 19
+            # Index 18: Games_Since_Last_3Goals_Home (home team's status3 counter)
+            # Index 19: Games_Since_Last_3Goals_Away (away team's status3 counter)
+            home_status3 = match[18] if len(match) > 18 else 0
+            away_status3 = match[19] if len(match) > 19 else 0
+            
+            # Create the correct Status3 string format
+            status3_string = f"{home_team}: {home_status3} | {away_team}: {away_status3}"
             
             st.markdown(
                 f"<div style='font-size:14px; margin-bottom:5px;'>{status3_string}</div>", 
