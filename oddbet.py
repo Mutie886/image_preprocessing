@@ -559,7 +559,7 @@ if len(st.session_state.match_data) > 0:
     st.header(f"📊 Season {st.session_state.season_number} Dashboard")
     
     # Row 1: League Table and Recent Matches
-    # MODIFIED: Reduced League Table width from [2, 1] to [1.5, 1]
+    # MODIFIED: Changed from [2, 1] to [1.5, 1] for better width balance
     col_league, col_recent = st.columns([1.5, 1])
     
     with col_league:
@@ -664,6 +664,37 @@ if len(st.session_state.match_data) > 0:
         else:
             st.metric("Total Matches", total_matches)
             st.metric("All-time Matches", total_matches)
+        
+        # ============ STATUS3 SUMMARY WIDGET ============
+        st.subheader("📊 Status3 Summary")
+        
+        # Create a container with black background like your previous dashboard
+        st.markdown("""
+            <div style="background-color:black; color:white; padding:15px; border-radius:10px; border:2px solid #444;">
+        """, unsafe_allow_html=True)
+        
+        # Get recent matches (last 20 for Status3)
+        recent_matches_for_status3 = st.session_state.match_data[-20:] if len(st.session_state.match_data) > 0 else []
+        
+        for match in recent_matches_for_status3[::-1]:  # Reverse to show newest first
+            home_team = match[1]
+            away_team = match[4]
+            home_status3 = match[19]  # Games_Since_Last_3Goals_Home is at index 19
+            away_status3 = match[20]  # Games_Since_Last_3Goals_Away is at index 20
+            
+            # Format exactly like your example: "Newcastle: 1 | Burnley: 1"
+            status3_line = f"{home_team}: {home_status3} | {away_team}: {away_status3}"
+            
+            st.markdown(
+                f"<div style='font-size:14px; margin-bottom:5px;'>{status3_line}</div>", 
+                unsafe_allow_html=True
+            )
+        
+        # If no matches yet
+        if len(recent_matches_for_status3) == 0:
+            st.markdown("<div style='color:#888; text-align:center;'>No matches yet</div>", unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
     
     # Row 2: Match Predictor
     st.markdown("---")
