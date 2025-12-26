@@ -10,8 +10,9 @@ VALID_TEAMS = {
     "Fulham", "Manchester Reds"
 }
 
-st.set_page_config(page_title="Football Results Dashboard", page_icon="⚽", layout="wide")
-st.title("⚽ Complete Football Analytics Dashboard")
+# Mobile-optimized layout
+st.set_page_config(page_title="Football Dashboard", page_icon="⚽", layout="wide")
+st.markdown("<h1 style='font-size: 1.8rem; text-align: center;'>⚽ Football Analytics Dashboard</h1>", unsafe_allow_html=True)
 
 # ============ SESSION STATE INITIALIZATION ============
 if "match_data" not in st.session_state:
@@ -40,7 +41,6 @@ if "season_number" not in st.session_state:
 # ============ HELPER FUNCTIONS ============
 def reset_league_for_new_season():
     """Reset team statistics for a new season while preserving match history"""
-    # Reset team stats (current season only) - KEEP match_data for CSV exports
     st.session_state.team_stats = {
         team: {
             "P": 0, "W": 0, "D": 0, "L": 0,
@@ -49,13 +49,11 @@ def reset_league_for_new_season():
         for team in VALID_TEAMS
     }
     
-    # Reset counters for new season
     st.session_state.home_counters = {team: 0 for team in VALID_TEAMS}
     st.session_state.away_counters = {team: 0 for team in VALID_TEAMS}
     st.session_state.ha_counters = {team: 0 for team in VALID_TEAMS}
     st.session_state.status3_counters = {team: 0 for team in VALID_TEAMS}
     
-    # Increment season number
     st.session_state.season_number += 1
     st.session_state.match_counter = 1
     
@@ -65,7 +63,7 @@ def check_and_reset_season():
     """Check if any team has reached 38 matches and reset if needed"""
     for team in VALID_TEAMS:
         if st.session_state.team_stats[team]["P"] >= 38:
-            st.warning(f"⚠️ **Season {st.session_state.season_number} Complete!** {team} has played 38 matches. Starting Season {st.session_state.season_number + 1}...")
+            st.warning(f"⚠️ **Season {st.session_state.season_number} Complete!** Starting Season {st.session_state.season_number + 1}...")
             reset_league_for_new_season()
             return True
     return False
@@ -87,6 +85,17 @@ def get_team_position(team_name):
             return pos
     return None
 
+def get_status3_color(status3_value):
+    """Get color based on Status3 value"""
+    if status3_value == 0:
+        return "#FF6B6B"  # Red - just had 3-goal match
+    elif status3_value <= 3:
+        return "#4CAF50"  # Green - recently had 3-goal match
+    elif status3_value <= 6:
+        return "#FFD700"  # Yellow - medium since last 3-goal match
+    else:
+        return "#3498DB"  # Blue - long time since last 3-goal match
+
 def calculate_team_metrics():
     """Calculate detailed metrics for each team"""
     metrics = {}
@@ -102,10 +111,8 @@ def calculate_team_metrics():
         avg_gf = stats["GF"] / total_matches if total_matches > 0 else 0
         avg_ga = stats["GA"] / total_matches if total_matches > 0 else 0
         
-        # Calculate actual Both Teams Scored rate from match data
         bts_matches = 0
         for match in st.session_state.match_data:
-            # Check if this team was involved and both teams scored
             if (match[1] == team and match[2] > 0 and match[3] > 0) or \
                (match[4] == team and match[2] > 0 and match[3] > 0):
                 bts_matches += 1
@@ -118,7 +125,7 @@ def calculate_team_metrics():
             "loss_rate": round(loss_rate, 1),
             "avg_gf": round(avg_gf, 2),
             "avg_ga": round(avg_ga, 2),
-            "bts_rate": min(100, round(bts_rate, 1)),  # Ensure max 100%
+            "bts_rate": min(100, round(bts_rate, 1)),
             "form": stats["Form"][-5:] if len(stats["Form"]) >= 5 else stats["Form"],
             "points_per_game": round(stats["Pts"] / total_matches, 2) if total_matches > 0 else 0,
         }
@@ -131,17 +138,14 @@ def predict_match_outcome(home_team, away_team, team_metrics):
     home_metrics = team_metrics[home_team]
     away_metrics = team_metrics[away_team]
     
-    # Base probabilities from win rates
     home_win_prob = home_metrics["win_rate"] * (1 - away_metrics["win_rate"] / 100)
     away_win_prob = away_metrics["win_rate"] * (1 - home_metrics["win_rate"] / 100)
     draw_prob = (home_metrics["draw_rate"] + away_metrics["draw_rate"]) / 2
     
-    # Adjust for home advantage
-    home_advantage = 15  # percentage points
+    home_advantage = 15
     home_win_prob += home_advantage
     away_win_prob = max(0, away_win_prob - home_advantage * 0.5)
     
-    # Normalize to 100%
     total = home_win_prob + away_win_prob + draw_prob
     if total > 0:
         home_win_prob = (home_win_prob / total * 100)
@@ -150,16 +154,14 @@ def predict_match_outcome(home_team, away_team, team_metrics):
     else:
         home_win_prob = draw_prob = away_win_prob = 33.3
     
-    # Calculate over/under probabilities
     total_goals_expected = home_metrics["avg_gf"] + away_metrics["avg_gf"]
     
     over_2_5_prob = min(90, max(10, (total_goals_expected - 1.5) * 30))
     over_3_5_prob = min(70, max(5, (total_goals_expected - 2.5) * 25))
     over_4_5_prob = min(50, max(2, (total_goals_expected - 3.5) * 20))
     
-    # Both teams score probability - FIXED: Ensure it's between 0-100
     both_teams_score_prob = (home_metrics["bts_rate"] + away_metrics["bts_rate"]) / 2
-    both_teams_score_prob = min(100, max(0, both_teams_score_prob))  # Clamp between 0-100
+    both_teams_score_prob = min(100, max(0, both_teams_score_prob))
     
     return {
         "home_win": min(100, max(0, round(home_win_prob, 1))),
@@ -245,64 +247,47 @@ def generate_betting_recommendations(home_team, away_team, predictions, team_met
         "insights": []
     }
     
-    # 1. Both Teams to Score analysis
     bts_prob = predictions['both_teams_score']
     if bts_prob >= 50:
-        reason = f"{home_team} leaks goals ({home_metrics['avg_ga']} GA/game) | "
-        reason += f"{away_team} can score ({away_metrics['avg_gf']} GF/game)"
+        reason = f"{home_team} leaks goals ({home_metrics['avg_ga']} GA) | {away_team} scores ({away_metrics['avg_gf']} GF)"
         if h2h_stats and h2h_stats['both_teams_score_pct'] >= 70:
-            reason += f" | Historical: {h2h_stats['both_teams_score_pct']}% both teams scored"
-        recommendations["best_bets"].append(("Both Teams to Score: YES", reason))
+            reason += f" | History: {h2h_stats['both_teams_score_pct']}%"
+        recommendations["best_bets"].append(("Both Teams Score: YES", reason))
     else:
-        recommendations["avoid_bets"].append("Both Teams to Score")
+        recommendations["avoid_bets"].append("Both Teams Score")
     
-    # 2. Double Chance (Home Win or Draw)
     home_win_or_draw = predictions['home_win'] + predictions['draw']
     if home_win_or_draw >= 65:
-        reason = f"{home_win_or_draw}% probability | Covers both likely outcomes"
-        recommendations["best_bets"].append((f"{home_team} or Draw (Double Chance)", reason))
+        recommendations["best_bets"].append((f"{home_team} or Draw", f"{home_win_or_draw}% probability"))
     
-    # 3. Under/Over markets
     if predictions['over_2_5'] < 50:
         under_prob = 100 - predictions['over_2_5']
-        reason = f"{under_prob}% probability | "
-        reason += f"{away_team}'s defense ({away_metrics['avg_ga']} GA) considered"
-        recommendations["best_bets"].append(("Under 2.5 Goals", reason))
+        recommendations["best_bets"].append(("Under 2.5 Goals", f"{under_prob}% | {away_team}'s defense"))
     else:
-        reason = f"{predictions['over_2_5']}% probability | High expected goals ({predictions['expected_goals']})"
-        recommendations["best_bets"].append(("Over 2.5 Goals", reason))
+        recommendations["best_bets"].append(("Over 2.5 Goals", f"{predictions['over_2_5']}% | High expected goals"))
     
-    # 4. Clean Sheet analysis
     if home_metrics['avg_ga'] > 1.4:
-        reason = f"Poor defense ({home_metrics['avg_ga']} GA/game) | Rarely keeps clean sheets"
-        recommendations["avoid_bets"].append(f"{home_team} to Win to Nil (Clean Sheet)")
+        recommendations["avoid_bets"].append(f"{home_team} Clean Sheet")
     
-    # 5. High over markets
     if predictions['over_3_5'] < 25:
-        reason = f"Only {predictions['over_3_5']}% probability | Low scoring teams"
         recommendations["avoid_bets"].append("Over 3.5 Goals")
     
     if predictions['over_4_5'] < 10:
         recommendations["avoid_bets"].append("Over 4.5 Goals")
     
-    # Add insights
     if home_metrics['avg_gf'] > away_metrics['avg_gf']:
-        recommendations["insights"].append(f"{home_team} has better attack ({home_metrics['avg_gf']} vs {away_metrics['avg_gf']} GF/game)")
+        recommendations["insights"].append(f"{home_team} better attack")
     else:
-        recommendations["insights"].append(f"{away_team} has better attack ({away_metrics['avg_gf']} vs {home_metrics['avg_gf']} GF/game)")
+        recommendations["insights"].append(f"{away_team} better attack")
     
     if away_metrics['avg_ga'] < home_metrics['avg_ga']:
-        recommendations["insights"].append(f"{away_team} has better defense ({away_metrics['avg_ga']} vs {home_metrics['avg_ga']} GA/game)")
+        recommendations["insights"].append(f"{away_team} better defense")
     else:
-        recommendations["insights"].append(f"{home_team} has better defense ({home_metrics['avg_ga']} vs {away_metrics['avg_ga']} GA/game)")
+        recommendations["insights"].append(f"{home_team} better defense")
     
     if h2h_stats and h2h_stats['total_matches'] > 0:
         if h2h_stats['home_wins'] == 0 and h2h_stats['away_wins'] == 0:
-            recommendations["insights"].append(f"Historical trend: {h2h_stats['draws']}/{h2h_stats['total_matches']} matches ended in draw")
-        elif h2h_stats['home_wins'] > h2h_stats['away_wins'] * 2:
-            recommendations["insights"].append(f"Strong historical advantage for {home_team}")
-        elif h2h_stats['away_wins'] > h2h_stats['home_wins'] * 2:
-            recommendations["insights"].append(f"Strong historical advantage for {away_team}")
+            recommendations["insights"].append(f"{h2h_stats['draws']}/{h2h_stats['total_matches']} draws historically")
     
     return recommendations
 
@@ -366,56 +351,48 @@ def clean_and_parse_matches(text: str):
     matches.reverse()
     return matches, errors, cleaned_lines
 
-# ============ MAIN DASHBOARD LAYOUT ============
+# ============ MOBILE-OPTIMIZED DASHBOARD ============
 
 # Top section: Data Input
-st.header("📥 Data Input & Processing")
-col1, col2 = st.columns([2, 1])
+st.markdown("### 📥 Data Input")
+input_col1, input_col2 = st.columns([2, 1])
 
-with col1:
+with input_col1:
     raw_input = st.text_area(
-        "**Paste match data** (with dates/times - will be cleaned automatically)", 
-        height=150,
-        placeholder="Paste your messy data here, e.g.:\nAston V\n1\n2\nSheffield U\nEnglish League WEEK 17 - #2025122312\n3:58 pm\nSouthampton\n2\n0\nEverton\n..."
+        "**Paste match data**", 
+        height=100,
+        placeholder="Paste data here:\nTeam\nScore\nScore\nTeam\n..."
     )
     
-    parse_clicked = st.button("🚀 Parse and Add Matches", type="primary", use_container_width=True)
+    parse_clicked = st.button("🚀 Parse Matches", type="primary", use_container_width=True)
 
-with col2:
-    st.markdown("### 🛠️ Quick Actions")
+with input_col2:
+    st.markdown("#### 🛠️ Actions")
     
-    # Season info
     max_matches = 0
     if st.session_state.team_stats:
         max_matches = max([st.session_state.team_stats[team]["P"] for team in VALID_TEAMS])
-    st.metric("📅 Current Season", f"Season {st.session_state.season_number}", 
-              f"{max_matches}/38 matches")
+    st.metric("Season", f"S{st.session_state.season_number}", f"{max_matches}/38")
     
-    action_col1, action_col2 = st.columns(2)
-    with action_col1:
-        if st.button("🔄 Manual Reset", help="Reset stats for new season", use_container_width=True):
-            reset_league_for_new_season()
-            st.rerun()
+    if st.button("🔄 Reset Season", use_container_width=True):
+        reset_league_for_new_season()
+        st.rerun()
     
-    with action_col2:
-        if st.button("🗑️ Clear All", help="Clear all match data", use_container_width=True):
-            st.session_state.match_data = []
-            reset_league_for_new_season()
-            st.rerun()
+    if st.button("🗑️ Clear All", use_container_width=True):
+        st.session_state.match_data = []
+        reset_league_for_new_season()
+        st.rerun()
 
 # Process input data
 if parse_clicked and raw_input.strip():
     new_matches, errors, cleaned_lines = clean_and_parse_matches(raw_input)
     
     if errors:
-        st.error(f"❌ Found {len(errors)} parsing errors")
-        for error in errors[:3]:  # Show first 3 errors
+        st.error(f"❌ {len(errors)} errors")
+        for error in errors[:2]:
             st.write(f"- {error}")
-        if len(errors) > 3:
-            st.write(f"- ... and {len(errors) - 3} more errors")
     
     if new_matches:
-        # Check if we need to reset season before adding new matches
         needs_reset = False
         for home_team, home_score, away_score, away_team in new_matches:
             if st.session_state.team_stats[home_team]["P"] >= 38 or st.session_state.team_stats[away_team]["P"] >= 38:
@@ -425,10 +402,8 @@ if parse_clicked and raw_input.strip():
         if needs_reset:
             check_and_reset_season()
         
-        # Process each match
         processed_count = 0
         for home_team, home_score, away_score, away_team in new_matches:
-            # Double-check season reset for each match
             if st.session_state.team_stats[home_team]["P"] >= 38 or st.session_state.team_stats[away_team]["P"] >= 38:
                 check_and_reset_season()
             
@@ -437,15 +412,8 @@ if parse_clicked and raw_input.strip():
             
             total_goals = home_score + away_score
             
-            # Determine Total-G display
-            if total_goals == 4:
-                total_g_display = "Won"
-            elif total_goals == 3:
-                total_g_display = "3 ✔"
-            else:
-                total_g_display = str(total_goals)
+            total_g_display = "Won" if total_goals == 4 else ("3 ✔" if total_goals == 3 else str(total_goals))
             
-            # Update counters
             if total_goals == 4:
                 st.session_state.home_counters[home_team] = 0
                 st.session_state.away_counters[away_team] = 0
@@ -464,7 +432,6 @@ if parse_clicked and raw_input.strip():
                 st.session_state.status3_counters[home_team] += 1
                 st.session_state.status3_counters[away_team] += 1
             
-            # Update team stats
             st.session_state.team_stats[home_team]["P"] += 1
             st.session_state.team_stats[home_team]["GF"] += home_score
             st.session_state.team_stats[home_team]["GA"] += away_score
@@ -475,47 +442,37 @@ if parse_clicked and raw_input.strip():
             st.session_state.team_stats[away_team]["GA"] += home_score
             st.session_state.team_stats[away_team]["GD"] = st.session_state.team_stats[away_team]["GF"] - st.session_state.team_stats[away_team]["GA"]
             
-            # Update points and results
             if home_score > away_score:
                 st.session_state.team_stats[home_team]["W"] += 1
                 st.session_state.team_stats[home_team]["Pts"] += 3
                 st.session_state.team_stats[home_team]["Form"].append("W")
-                
                 st.session_state.team_stats[away_team]["L"] += 1
                 st.session_state.team_stats[away_team]["Form"].append("L")
-                
                 result = "Home Win"
             elif away_score > home_score:
                 st.session_state.team_stats[away_team]["W"] += 1
                 st.session_state.team_stats[away_team]["Pts"] += 3
                 st.session_state.team_stats[away_team]["Form"].append("W")
-                
                 st.session_state.team_stats[home_team]["L"] += 1
                 st.session_state.team_stats[home_team]["Form"].append("L")
-                
                 result = "Away Win"
             else:
                 st.session_state.team_stats[home_team]["D"] += 1
                 st.session_state.team_stats[home_team]["Pts"] += 1
                 st.session_state.team_stats[home_team]["Form"].append("D")
-                
                 st.session_state.team_stats[away_team]["D"] += 1
                 st.session_state.team_stats[away_team]["Pts"] += 1
                 st.session_state.team_stats[away_team]["Form"].append("D")
-                
                 result = "Draw"
             
-            # Keep only last 5 form results
             if len(st.session_state.team_stats[home_team]["Form"]) > 5:
                 st.session_state.team_stats[home_team]["Form"].pop(0)
             if len(st.session_state.team_stats[away_team]["Form"]) > 5:
                 st.session_state.team_stats[away_team]["Form"].pop(0)
             
-            # Get current rankings
             home_rank = get_team_position(home_team)
             away_rank = get_team_position(away_team)
             
-            # Add match data with season info
             st.session_state.match_data.append([
                 match_id, home_team, home_score, away_score, away_team,
                 total_goals, total_g_display, result,
@@ -531,19 +488,18 @@ if parse_clicked and raw_input.strip():
                 st.session_state.status3_counters[away_team],
                 f"{home_team}: {st.session_state.ha_counters[home_team]} | {away_team}: {st.session_state.ha_counters[away_team]}",
                 f"{home_team}: {st.session_state.status3_counters[home_team]} | {away_team}: {st.session_state.status3_counters[away_team]}",
-                st.session_state.season_number,  # Season number
-                f"Season {st.session_state.season_number}"  # Season label
+                st.session_state.season_number,
+                f"Season {st.session_state.season_number}"
             ])
             
             processed_count += 1
         
-        st.success(f"✅ Added {processed_count} matches to Season {st.session_state.season_number}")
+        st.success(f"✅ Added {processed_count} matches")
         st.rerun()
     else:
-        st.warning("⚠️ No valid matches found in the input")
+        st.warning("⚠️ No valid matches found")
 
 # ============ MAIN DASHBOARD SECTIONS ============
-# CORRECTED CONDITION: Check if we have match data
 if len(st.session_state.match_data) > 0:
     column_names = [
         "Match_ID", "Home_Team", "Home_Score", "Away_Score", "Away_Team",
@@ -557,15 +513,11 @@ if len(st.session_state.match_data) > 0:
     
     df = pd.DataFrame(st.session_state.match_data, columns=column_names)
     
-    # Create three main columns for the dashboard
     st.markdown("---")
-    st.header(f"📊 Season {st.session_state.season_number} Dashboard")
+    st.markdown(f"### 📊 Season {st.session_state.season_number} Dashboard")
     
-    # Row 1: League Table and Recent Matches
-    col_league, col_recent = st.columns([2, 1])
-    
-    with col_league:
-        st.subheader(f"🏆 Season {st.session_state.season_number} League Table")
+    # ============ COMPACT LEAGUE TABLE ============
+    with st.expander("🏆 League Table", expanded=True):
         rankings = calculate_rankings()
         
         table_data = []
@@ -573,7 +525,7 @@ if len(st.session_state.match_data) > 0:
             table_data.append([
                 pos, team, stats["P"], stats["W"], stats["D"], stats["L"],
                 stats["GF"], stats["GA"], stats["GD"], stats["Pts"], 
-                " ".join(stats["Form"][-5:]) if stats["Form"] else "No matches"
+                "".join(stats["Form"][-3:]) if stats["Form"] else "-"
             ])
         
         league_df = pd.DataFrame(
@@ -581,77 +533,249 @@ if len(st.session_state.match_data) > 0:
             columns=["Pos", "Team", "P", "W", "D", "L", "GF", "GA", "GD", "Pts", "Form"]
         )
         
-        st.dataframe(league_df, use_container_width=True, height=500)
+        # Display with smaller font
+        st.dataframe(league_df.style.set_properties(**{
+            'font-size': '0.8em',
+            'padding': '2px'
+        }), use_container_width=True, height=300)
         
-        # Quick league insights
-        st.subheader("📈 League Insights")
-        insight_col1, insight_col2, insight_col3, insight_col4 = st.columns(4)
-        
-        with insight_col1:
-            if len(league_df) > 0:
+        # Compact league insights
+        cols = st.columns(4)
+        if len(league_df) > 0:
+            with cols[0]:
                 best_attack = league_df.loc[league_df['GF'].idxmax()]
-                st.metric("Best Attack", best_attack['Team'], f"{best_attack['GF']} GF")
-        
-        with insight_col2:
-            if len(league_df) > 0:
+                st.metric("⚡ Attack", best_attack['Team'], f"{best_attack['GF']}", help="Most goals scored")
+            with cols[1]:
                 best_defense = league_df.loc[league_df['GA'].idxmin()]
-                st.metric("Best Defense", best_defense['Team'], f"{best_defense['GA']} GA")
-        
-        with insight_col3:
-            if len(league_df) > 0:
+                st.metric("🛡️ Defense", best_defense['Team'], f"{best_defense['GA']}", help="Fewest goals conceded")
+            with cols[2]:
                 best_gd = league_df.loc[league_df['GD'].idxmax()]
-                st.metric("Best GD", best_gd['Team'], f"+{best_gd['GD']}")
-        
-        with insight_col4:
-            if len(league_df) > 0:
+                st.metric("📈 GD", best_gd['Team'], f"+{best_gd['GD']}", help="Best goal difference")
+            with cols[3]:
                 top_scorer = league_df.loc[league_df['Pts'].idxmax()]
-                st.metric("League Leader", top_scorer['Team'], f"{top_scorer['Pts']} Pts")
+                st.metric("👑 Leader", top_scorer['Team'], f"{top_scorer['Pts']}", help="Most points")
     
-    with col_recent:
-        st.subheader("🔄 Recent Match Summary")
-        
-        st.markdown("""
-            <div style="background-color:black; color:white; padding:15px; border-radius:10px; border:2px solid #444;">
-        """, unsafe_allow_html=True)
-        
-        # Get recent matches (last 10)
-        recent_matches = st.session_state.match_data[-10:] if len(st.session_state.match_data) > 0 else []
-        
-        for match in recent_matches[::-1]:  # Reverse to show newest first
-            home = match[1]
-            away = match[4]
-            home_score = match[2]
-            away_score = match[3]
-            home_rank = match[11] if len(match) > 11 else "?"
-            away_rank = match[12] if len(match) > 12 else "?"
+    # ============ COMPACT MATCH SUMMARIES ============
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        with st.expander("🔄 Recent Matches", expanded=True):
+            st.markdown("""
+                <div style="background-color:black; color:white; padding:10px; border-radius:8px; border:1px solid #444; font-size:0.85em;">
+            """, unsafe_allow_html=True)
             
-            # Color code based on result
-            if home_score > away_score:
-                home_style = "color: #4CAF50; font-weight: bold;"
-                away_style = "color: #FF6B6B;"
-            elif away_score > home_score:
-                home_style = "color: #FF6B6B;"
-                away_style = "color: #4CAF50; font-weight: bold;"
-            else:
-                home_style = away_style = "color: #FFD700;"
+            recent_matches = st.session_state.match_data[-8:] if len(st.session_state.match_data) > 0 else []
             
-            st.markdown(
-                f"<div style='font-size:14px; margin-bottom:8px; padding:5px; border-bottom:1px solid #333;'>"
-                f"<span style='{home_style}'>{home_rank}. {home}</span> "
-                f"{home_score}-{away_score} "
-                f"<span style='{away_style}'>{away} ({away_rank}.)</span>"
-                f"</div>", 
-                unsafe_allow_html=True
+            for match in recent_matches[::-1]:
+                home = match[1]
+                away = match[4]
+                home_score = match[2]
+                away_score = match[3]
+                home_rank = match[11] if len(match) > 11 else "?"
+                away_rank = match[12] if len(match) > 12 else "?"
+                
+                if home_score > away_score:
+                    home_style = "color: #4CAF50; font-weight: bold;"
+                    away_style = "color: #FF6B6B;"
+                elif away_score > home_score:
+                    home_style = "color: #FF6B6B;"
+                    away_style = "color: #4CAF50; font-weight: bold;"
+                else:
+                    home_style = away_style = "color: #FFD700;"
+                
+                st.markdown(
+                    f"<div style='margin-bottom:5px; padding:3px; border-bottom:1px solid #333;'>"
+                    f"<span style='{home_style}'>{home_rank}. {home[:10]}</span> "
+                    f"{home_score}-{away_score} "
+                    f"<span style='{away_style}'>{away[:10]} ({away_rank}.)</span>"
+                    f"</div>", 
+                    unsafe_allow_html=True
+                )
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+    
+    with col2:
+        with st.expander("🎯 Status3 Summary", expanded=True):
+            st.markdown("""
+                <div style="background-color:#1a1a1a; color:white; padding:10px; border-radius:8px; border:1px solid #444; font-size:0.85em;">
+                <div style='color:#888; font-size:0.75em; margin-bottom:5px;'>Games since last 3-goal match</div>
+            """, unsafe_allow_html=True)
+            
+            # Get recent teams from last 5 matches
+            recent_teams = set()
+            for match in st.session_state.match_data[-5:]:
+                if len(match) > 1:
+                    recent_teams.add(match[1])  # Home team
+                    recent_teams.add(match[4])  # Away team
+            
+            # Show Status3 for recent teams
+            for team in sorted(recent_teams):
+                status3_value = st.session_state.status3_counters.get(team, 0)
+                status3_color = get_status3_color(status3_value)
+                status3_display = "0 🔴" if status3_value == 0 else f"{status3_value} 🟢" if status3_value <= 3 else f"{status3_value} 🟡" if status3_value <= 6 else f"{status3_value} 🔵"
+                
+                st.markdown(
+                    f"<div style='margin-bottom:4px; padding:3px; border-bottom:1px solid #333;'>"
+                    f"<span style='color:{status3_color}; font-weight:bold;'>{team[:12]}</span> "
+                    f"<span style='float:right;'>{status3_display}</span>"
+                    f"</div>", 
+                    unsafe_allow_html=True
+                )
+            
+            # Status3 legend
+            st.markdown("""
+                <div style='margin-top:10px; font-size:0.7em; color:#888;'>
+                🟢 0-3: Recent 3-goal match<br>
+                🟡 4-6: Medium<br>
+                🔵 7+: Long time<br>
+                🔴 0: Just had 3 goals
+                </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+    
+    # ============ COMPACT MATCH PREDICTOR ============
+    with st.expander("🎯 Match Predictor", expanded=False):
+        pred_col1, pred_col2 = st.columns(2)
+        
+        with pred_col1:
+            home_team = st.selectbox("Home Team", sorted(VALID_TEAMS), key="home_select_mobile")
+        
+        with pred_col2:
+            away_team = st.selectbox("Away Team", sorted(VALID_TEAMS), key="away_select_mobile")
+        
+        if home_team == away_team:
+            st.warning("Select different teams")
+        else:
+            team_metrics = calculate_team_metrics()
+            predictions = predict_match_outcome(home_team, away_team, team_metrics)
+            h2h_stats = create_head_to_head_stats(home_team, away_team)
+            
+            # Compact outcome probabilities
+            st.markdown("#### 📈 Predictions")
+            outcome_cols = st.columns(3)
+            with outcome_cols[0]:
+                home_win_value = min(1.0, max(0.0, predictions['home_win'] / 100))
+                st.metric("🏠 Home", f"{predictions['home_win']}%")
+                st.progress(home_win_value, height=10)
+            with outcome_cols[1]:
+                draw_value = min(1.0, max(0.0, predictions['draw'] / 100))
+                st.metric("🤝 Draw", f"{predictions['draw']}%")
+                st.progress(draw_value, height=10)
+            with outcome_cols[2]:
+                away_win_value = min(1.0, max(0.0, predictions['away_win'] / 100))
+                st.metric("✈️ Away", f"{predictions['away_win']}%")
+                st.progress(away_win_value, height=10)
+            
+            # Compact goal markets
+            st.markdown("#### ⚽ Goal Markets")
+            goal_cols = st.columns(4)
+            with goal_cols[0]:
+                over_2_5_value = min(1.0, max(0.0, predictions['over_2_5'] / 100))
+                st.metric("O2.5", f"{predictions['over_2_5']}%")
+                st.progress(over_2_5_value, height=8)
+            with goal_cols[1]:
+                over_3_5_value = min(1.0, max(0.0, predictions['over_3_5'] / 100))
+                st.metric("O3.5", f"{predictions['over_3_5']}%")
+                st.progress(over_3_5_value, height=8)
+            with goal_cols[2]:
+                over_4_5_value = min(1.0, max(0.0, predictions['over_4_5'] / 100))
+                st.metric("O4.5", f"{predictions['over_4_5']}%")
+                st.progress(over_4_5_value, height=8)
+            with goal_cols[3]:
+                bts_value = min(1.0, max(0.0, predictions['both_teams_score'] / 100))
+                st.metric("BTS", f"{predictions['both_teams_score']}%")
+                st.progress(bts_value, height=8)
+            
+            # Expected goals
+            exp_cols = st.columns(2)
+            with exp_cols[0]:
+                st.metric("📊 xG", predictions['expected_goals'])
+            with exp_cols[1]:
+                st.metric("🔮 Score", predictions['predicted_score'])
+            
+            # Betting Recommendations
+            recommendations = generate_betting_recommendations(
+                home_team, away_team, predictions, team_metrics, h2h_stats
+            )
+            
+            if recommendations["best_bets"]:
+                with st.expander("💰 Betting Tips", expanded=False):
+                    for bet, reason in recommendations["best_bets"][:2]:  # Show only top 2
+                        st.write(f"✅ **{bet}**")
+                        st.caption(f"{reason}")
+            
+            # Quick team comparison
+            with st.expander("📋 Quick Compare", expanded=False):
+                compare_data = {
+                    "Metric": ["Win%", "Draw%", "Avg GF", "Avg GA", "Form"],
+                    home_team: [
+                        f"{team_metrics[home_team]['win_rate']}%",
+                        f"{team_metrics[home_team]['draw_rate']}%",
+                        team_metrics[home_team]['avg_gf'],
+                        team_metrics[home_team]['avg_ga'],
+                        "".join(team_metrics[home_team]['form'][-3:]) if team_metrics[home_team]['form'] else "-"
+                    ],
+                    away_team: [
+                        f"{team_metrics[away_team]['win_rate']}%",
+                        f"{team_metrics[away_team]['draw_rate']}%",
+                        team_metrics[away_team]['avg_gf'],
+                        team_metrics[away_team]['avg_ga'],
+                        "".join(team_metrics[away_team]['form'][-3:]) if team_metrics[away_team]['form'] else "-"
+                    ]
+                }
+                
+                compare_df = pd.DataFrame(compare_data)
+                st.dataframe(compare_df, use_container_width=True, hide_index=True)
+    
+    # ============ COMPACT DATA EXPORT ============
+    with st.expander("💾 Export Data", expanded=False):
+        exp_cols = st.columns(3)
+        
+        with exp_cols[0]:
+            csv_full = df.to_csv(index=False)
+            st.download_button(
+                "📥 All Data",
+                data=csv_full,
+                file_name=f"all_matches.csv",
+                mime="text/csv",
+                use_container_width=True
             )
         
-        st.markdown("</div>", unsafe_allow_html=True)
+        with exp_cols[1]:
+            current_season_df = df[df["Season_Number"] == st.session_state.season_number]
+            if len(current_season_df) > 0:
+                csv_current = current_season_df.to_csv(index=False)
+                st.download_button(
+                    f"📥 S{st.session_state.season_number}",
+                    data=csv_current,
+                    file_name=f"season_{st.session_state.season_number}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
         
-        # Quick stats
-        st.subheader("📋 Quick Stats")
+        with exp_cols[2]:
+            csv_league = league_df.to_csv(index=False)
+            st.download_button(
+                "📥 Table",
+                data=csv_league,
+                file_name=f"league_table.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+        
+        # Season warning
+        max_played = 0
+        if st.session_state.team_stats:
+            max_played = max([st.session_state.team_stats[team]["P"] for team in VALID_TEAMS])
+        if max_played >= 35:
+            st.warning(f"⚠️ Season {st.session_state.season_number}: {max_played}/38 matches")
+    
+    # ============ COMPACT STATS SUMMARY ============
+    with st.expander("📊 Quick Stats", expanded=False):
         total_matches = len(st.session_state.match_data)
-        
-        # Calculate stats for current season only
         current_season_matches = [m for m in st.session_state.match_data if m[-2] == st.session_state.season_number]
+        
         if current_season_matches:
             current_df = pd.DataFrame(current_season_matches, columns=column_names)
             avg_goals = current_df["Total_Goals"].mean()
@@ -659,298 +783,52 @@ if len(st.session_state.match_data) > 0:
             away_wins = len(current_df[current_df["Match_Result"] == "Away Win"])
             draws = len(current_df[current_df["Match_Result"] == "Draw"])
             
-            st.metric("Season Matches", len(current_season_matches))
-            st.metric("Avg Goals/Match", round(avg_goals, 2))
-            st.metric("Home/Draw/Away", f"{home_wins}/{draws}/{away_wins}")
-        else:
-            st.metric("Total Matches", total_matches)
-            st.metric("All-time Matches", total_matches)
-    
-    # Row 2: Match Predictor
-    st.markdown("---")
-    st.header("🎯 Match Predictor & Analytics")
-    
-    pred_col1, pred_col2 = st.columns(2)
-    
-    with pred_col1:
-        home_team = st.selectbox("**Select Home Team**", sorted(VALID_TEAMS), key="home_select")
-    
-    with pred_col2:
-        away_team = st.selectbox("**Select Away Team**", sorted(VALID_TEAMS), key="away_select")
-    
-    if home_team == away_team:
-        st.warning("⚠️ Please select two different teams")
-    else:
-        # Calculate predictions
-        team_metrics = calculate_team_metrics()
-        predictions = predict_match_outcome(home_team, away_team, team_metrics)
-        h2h_stats = create_head_to_head_stats(home_team, away_team)
-        
-        # Display predictions in columns
-        st.subheader("📈 Match Predictions")
-        
-        # Outcome probabilities - FIXED: Ensure progress values are between 0-1
-        outcome_col1, outcome_col2, outcome_col3 = st.columns(3)
-        
-        with outcome_col1:
-            home_win_value = min(1.0, max(0.0, predictions['home_win'] / 100))
-            st.metric("🏠 Home Win", f"{predictions['home_win']}%")
-            st.progress(home_win_value)
-        
-        with outcome_col2:
-            draw_value = min(1.0, max(0.0, predictions['draw'] / 100))
-            st.metric("🤝 Draw", f"{predictions['draw']}%")
-            st.progress(draw_value)
-        
-        with outcome_col3:
-            away_win_value = min(1.0, max(0.0, predictions['away_win'] / 100))
-            st.metric("✈️ Away Win", f"{predictions['away_win']}%")
-            st.progress(away_win_value)
-        
-        # Goal markets - FIXED: Ensure progress values are between 0-1
-        st.subheader("⚽ Goal Markets")
-        goal_col1, goal_col2, goal_col3, goal_col4 = st.columns(4)
-        
-        with goal_col1:
-            over_2_5_value = min(1.0, max(0.0, predictions['over_2_5'] / 100))
-            st.metric("Over 2.5 Goals", f"{predictions['over_2_5']}%")
-            st.progress(over_2_5_value)
-        
-        with goal_col2:
-            over_3_5_value = min(1.0, max(0.0, predictions['over_3_5'] / 100))
-            st.metric("Over 3.5 Goals", f"{predictions['over_3_5']}%")
-            st.progress(over_3_5_value)
-        
-        with goal_col3:
-            over_4_5_value = min(1.0, max(0.0, predictions['over_4_5'] / 100))
-            st.metric("Over 4.5 Goals", f"{predictions['over_4_5']}%")
-            st.progress(over_4_5_value)
-        
-        with goal_col4:
-            bts_value = min(1.0, max(0.0, predictions['both_teams_score'] / 100))
-            st.metric("Both Teams Score", f"{predictions['both_teams_score']}%")
-            st.progress(bts_value)
-        
-        # Expected goals
-        col_exp1, col_exp2 = st.columns(2)
-        with col_exp1:
-            st.metric("📊 Expected Total Goals", predictions['expected_goals'])
-        with col_exp2:
-            st.metric("🔮 Predicted Score", predictions['predicted_score'])
-        
-        # Head-to-head statistics
-        if h2h_stats:
-            st.subheader("🤼 Head-to-Head History")
-            h2h_col1, h2h_col2, h2h_col3, h2h_col4 = st.columns(4)
-            
-            with h2h_col1:
-                st.metric("Matches Played", h2h_stats["total_matches"])
-            
-            with h2h_col2:
-                st.metric(f"{home_team} Wins", h2h_stats["home_wins"])
-            
-            with h2h_col3:
-                st.metric(f"{away_team} Wins", h2h_stats["away_wins"])
-            
-            with h2h_col4:
-                st.metric("Draws", h2h_stats["draws"])
-            
-            # Historical trends
-            st.markdown("**📊 Historical Trends:**")
-            trend_col1, trend_col2, trend_col3 = st.columns(3)
-            
-            with trend_col1:
-                st.metric("Over 2.5 Goals", f"{h2h_stats['over_2_5_pct']}%")
-            
-            with trend_col2:
-                st.metric("Over 3.5 Goals", f"{h2h_stats['over_3_5_pct']}%")
-            
-            with trend_col3:
-                st.metric("Both Teams Scored", f"{h2h_stats['both_teams_score_pct']}%")
-            
-            st.caption(f"Average Goals per Match: {h2h_stats['avg_goals']}")
-        else:
-            st.info("📊 No head-to-head history available for these teams")
-        
-        # Betting Recommendations
-        st.markdown("---")
-        st.subheader("💰 Betting Recommendations")
-        
-        recommendations = generate_betting_recommendations(
-            home_team, away_team, predictions, team_metrics, h2h_stats
-        )
-        
-        # Display recommendations in columns
-        rec_col1, rec_col2 = st.columns(2)
-        
-        with rec_col1:
-            if recommendations["best_bets"]:
-                st.markdown("#### ✅ **BEST BETS:**")
-                for bet, reason in recommendations["best_bets"]:
-                    with st.expander(f"**{bet}**", expanded=False):
-                        st.write(f"**Why:** {reason}")
-            else:
-                st.info("No strong betting recommendations available")
-        
-        with rec_col2:
-            if recommendations["avoid_bets"]:
-                st.markdown("#### ❌ **AVOID:**")
-                for bet in recommendations["avoid_bets"]:
-                    st.write(f"- {bet}")
-            else:
-                st.info("No specific bets to avoid")
-        
-        # Key Insights
-        if recommendations["insights"]:
-            st.markdown("#### 📊 **KEY INSIGHTS:**")
-            for insight in recommendations["insights"]:
-                st.write(f"• {insight}")
-        
-        # Team Comparison
-        st.markdown("---")
-        st.subheader("📋 Team Comparison")
-        
-        compare_data = {
-            "Metric": ["Win Rate", "Draw Rate", "Loss Rate", "Avg Goals For", 
-                      "Avg Goals Against", "Points per Game", "Current Form"],
-            home_team: [
-                f"{team_metrics[home_team]['win_rate']}%",
-                f"{team_metrics[home_team]['draw_rate']}%",
-                f"{team_metrics[home_team]['loss_rate']}%",
-                team_metrics[home_team]['avg_gf'],
-                team_metrics[home_team]['avg_ga'],
-                team_metrics[home_team]['points_per_game'],
-                " ".join(team_metrics[home_team]['form']) if team_metrics[home_team]['form'] else "No form"
-            ],
-            away_team: [
-                f"{team_metrics[away_team]['win_rate']}%",
-                f"{team_metrics[away_team]['draw_rate']}%",
-                f"{team_metrics[away_team]['loss_rate']}%",
-                team_metrics[away_team]['avg_gf'],
-                team_metrics[away_team]['avg_ga'],
-                team_metrics[away_team]['points_per_game'],
-                " ".join(team_metrics[away_team]['form']) if team_metrics[away_team]['form'] else "No form"
-            ]
-        }
-        
-        compare_df = pd.DataFrame(compare_data)
-        st.dataframe(compare_df, use_container_width=True, hide_index=True)
-    
-    # Row 3: Data Export and Management
-    st.markdown("---")
-    st.header("💾 Data Management & Export")
-    
-    exp_col1, exp_col2, exp_col3 = st.columns(3)
-    
-    with exp_col1:
-        # Export ALL match data (all seasons)
-        csv_full = df.to_csv(index=False)
-        st.download_button(
-            "📋 Download ALL Match Data",
-            data=csv_full,
-            file_name=f"football_data_all_seasons.csv",
-            mime="text/csv",
-            help="Includes ALL matches from ALL seasons",
-            use_container_width=True
-        )
-    
-    with exp_col2:
-        # Export current season data only
-        current_season_df = df[df["Season_Number"] == st.session_state.season_number]
-        if len(current_season_df) > 0:
-            csv_current = current_season_df.to_csv(index=False)
-            st.download_button(
-                f"🏆 Download Season {st.session_state.season_number} Data",
-                data=csv_current,
-                file_name=f"season_{st.session_state.season_number}_matches.csv",
-                mime="text/csv",
-                help=f"Matches from Season {st.session_state.season_number} only",
-                use_container_width=True
-            )
-        else:
-            st.info("No matches in current season")
-    
-    with exp_col3:
-        # Export league table
-        csv_league = league_df.to_csv(index=False)
-        st.download_button(
-            "📊 Download League Table",
-            data=csv_league,
-            file_name=f"season_{st.session_state.season_number}_league_table.csv",
-            mime="text/csv",
-            help="Current league standings",
-            use_container_width=True
-        )
-    
-    # Season reset warning
-    max_played = 0
-    if st.session_state.team_stats:
-        max_played = max([st.session_state.team_stats[team]["P"] for team in VALID_TEAMS])
-    if max_played >= 35:
-        st.warning(f"⚠️ **Season End Approaching**: Teams have played up to {max_played}/38 matches. "
-                  f"Season {st.session_state.season_number} will reset automatically when any team reaches 38 matches.")
-    
-    # Show match count
-    total_all_time = len(st.session_state.match_data)
-    current_season_count = len([m for m in st.session_state.match_data if m[-2] == st.session_state.season_number])
-    
-    st.info(f"📈 **Data Summary**: {total_all_time} total matches | {current_season_count} in Season {st.session_state.season_number}")
+            stat_cols = st.columns(4)
+            with stat_cols[0]:
+                st.metric("Matches", len(current_season_matches))
+            with stat_cols[1]:
+                st.metric("Avg Goals", round(avg_goals, 1))
+            with stat_cols[2]:
+                st.metric("Home Wins", home_wins)
+            with stat_cols[3]:
+                st.metric("Away Wins", away_wins)
 
 else:
     # Welcome message when no data exists
     st.markdown("---")
-    st.subheader("🚀 Getting Started")
+    st.markdown("### 🚀 Getting Started")
     
     col_welcome1, col_welcome2 = st.columns(2)
     
     with col_welcome1:
         st.markdown("""
-        ### 📝 How to use this dashboard:
-        1. **Paste match data** in the text area above
-        2. Click **"Parse and Add Matches"** to process
-        3. View **live league table** and statistics
-        4. Use the **Match Predictor** for analytics
-        5. **Download data** for further analysis
-        
-        ### 🔄 Automatic Season Management:
-        - League resets automatically after 38 matches
-        - **Match history is preserved** for CSV exports
-        - Only season stats reset for new season
-        - Manual reset button available
+        **📝 How to use:**
+        1. **Paste match data** above
+        2. Click **Parse Matches**
+        3. View **league table**
+        4. Use **predictor**
+        5. **Download data**
         """)
     
     with col_welcome2:
         st.markdown("""
-        ### 📊 What you'll see:
-        - **Live League Table** with rankings
-        - **Match Predictions** with probabilities
-        - **Betting Recommendations** based on data
-        - **Head-to-Head Statistics**
-        - **Team Comparison** metrics
-        - **Data Export** options (all seasons or current)
-        
-        ### 💡 Tips:
-        - Use consistent team names from the list
-        - Data format: Team, Score, Score, Team
-        - The cleaner removes dates, times, and league info
-        - Example input:
+        **💡 Tips:**
+        - Format: Team, Score, Score, Team
+        - Cleaner removes dates/times
+        - Example:
         ```
-        Manchester Blue
+        Team A
         2
         1
-        Liverpool
-        London Reds
-        0
-        0
-        Everton
+        Team B
         ```
         """)
 
 # Footer
 st.markdown("---")
 st.markdown(
-    "<div style='text-align: center; color: #666; font-size: 0.9em;'>"
-    f"⚽ Football Analytics Dashboard • Season {st.session_state.season_number} • Automatic 38-match season reset • All match data preserved"
+    "<div style='text-align: center; color: #666; font-size: 0.8em;'>"
+    f"⚽ Season {st.session_state.season_number} • 38-match reset • All data preserved"
     "</div>",
     unsafe_allow_html=True
 )
