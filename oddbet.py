@@ -808,34 +808,48 @@ if len(st.session_state.match_data) > 0:
         
         with outcome_col1:
             st.metric("🏠 Home Win", f"{predictions['home_win']}%")
-            st.progress(predictions['home_win'] / 100)
+            # FIX: Ensure progress value is between 0.0 and 1.0
+            progress_value = min(1.0, max(0.0, predictions['home_win'] / 100))
+            st.progress(progress_value)
         
         with outcome_col2:
             st.metric("🤝 Draw", f"{predictions['draw']}%")
-            st.progress(predictions['draw'] / 100)
+            # FIX: Ensure progress value is between 0.0 and 1.0
+            progress_value = min(1.0, max(0.0, predictions['draw'] / 100))
+            st.progress(progress_value)
         
         with outcome_col3:
             st.metric("✈️ Away Win", f"{predictions['away_win']}%")
-            st.progress(predictions['away_win'] / 100)
+            # FIX: Ensure progress value is between 0.0 and 1.0
+            progress_value = min(1.0, max(0.0, predictions['away_win'] / 100))
+            st.progress(progress_value)
         
         st.subheader("⚽ Goal Markets")
         goal_col1, goal_col2, goal_col3, goal_col4 = st.columns(4)
         
         with goal_col1:
             st.metric("Over 2.5 Goals", f"{predictions['over_2_5']}%")
-            st.progress(predictions['over_2_5'] / 100)
+            # FIX: Ensure progress value is between 0.0 and 1.0
+            progress_value = min(1.0, max(0.0, predictions['over_2_5'] / 100))
+            st.progress(progress_value)
         
         with goal_col2:
             st.metric("Over 3.5 Goals", f"{predictions['over_3_5']}%")
-            st.progress(predictions['over_3_5'] / 100)
+            # FIX: Ensure progress value is between 0.0 and 1.0
+            progress_value = min(1.0, max(0.0, predictions['over_3_5'] / 100))
+            st.progress(progress_value)
         
         with goal_col3:
             st.metric("Over 4.5 Goals", f"{predictions['over_4_5']}%")
-            st.progress(predictions['over_4_5'] / 100)
+            # FIX: Ensure progress value is between 0.0 and 1.0
+            progress_value = min(1.0, max(0.0, predictions['over_4_5'] / 100))
+            st.progress(progress_value)
         
         with goal_col4:
             st.metric("Both Teams Score", f"{predictions['both_teams_score']}%")
-            st.progress(predictions['both_teams_score'] / 100)
+            # FIX: Ensure progress value is between 0.0 and 1.0
+            progress_value = min(1.0, max(0.0, predictions['both_teams_score'] / 100))
+            st.progress(progress_value)
         
         col_exp1, col_exp2 = st.columns(2)
         with col_exp1:
